@@ -6,6 +6,10 @@
 
 **Shockwave** is an open-source, local-first background voice dictation tool for Windows. It allows you to dictate text completely hands-free via a customizable wake word (powered by Vosk), via a global hotkey, or by clicking the interactive radar button. It automatically normalizes punctuation and tech terminology using an LLM and types/copies the resulting text directly to your focused window.
 
+<p align="center">
+  <img src="docs/floating_widget.png?v=1.1.1" alt="Floating Widget" width="521">
+</p>
+
 ### Speech Recognition Models:
 - **Wake Word Engine (`Vosk`)**: Ultra-lightweight offline model (`vosk-model-small-en-us-0.15`) for continuous background wake word listening with near-zero CPU footprint.
 - **Whisper (`large-v3-turbo`)**: Multilingual speech recognition through `faster-whisper`. It is the only speech-to-text engine. Set the spoken language with `whisper_language` under `[Recognition]`, or use `auto` to detect it.
@@ -48,6 +52,4 @@ Detailed guides are available below:
 
 <p align="center">
   <img src="docs/control_panel.png?v=1.1.1" alt="Control Panel" width="753">
-  <br><br>
-  <img src="docs/floating_widget.png?v=1.1.1" alt="Floating Widget" width="521">
 </p>
