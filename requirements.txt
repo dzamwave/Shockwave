@@ -1,0 +1,12 @@
+keyboard
+requests
+pyperclip
+sounddevice
+soundfile
+numpy
+scipy
+faster-whisper
+huggingface-hub
+pillow
+av
+vosk

@@ -1,0 +1,36 @@
+# Virtual Environment & Python cache
+venv/
+__pycache__/
+*.pyc
+
+# Environment & Secrets
+.env
+config/.env
+**/.env
+config/config.ini
+.megamemory/
+
+# Build outputs & Executables
+dist/
+build/
+*.spec
+*.exe
+*.lnk
+
+# Logs & Temporary files
+*.log
+temp_audio.wav
+*.wav
+!alert/*.wav
+
+# Models (weights are downloaded via launcher, keep folder structure)
+models/**
+!models/whisper/
+!models/vosk-model-small-en-us/
+!models/whisper/.gitkeep
+!models/vosk-model-small-en-us/.gitkeep
+models/whisper/**
+models/vosk-model-small-en-us/**
+
+# Other temp formats
+*.psd
