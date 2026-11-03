@@ -244,7 +244,7 @@ STARTUP_SOUND = get_bool("Sound", "startup_sound", "STARTUP_SOUND", default=True
 ALERT_SOUND = get_bool("Sound", "alert_sound", "ALERT_SOUND", default=True, aliases=[("Toggles", "alert_sound")])
 
 # --- Speech recognition ---
-# English copy uses Whisper only. A legacy engine value is ignored.
+# Whisper is the only engine. A legacy engine value is ignored.
 WHISPER_MODEL = get_setting("Recognition", "whisper_model", "WHISPER_MODEL", default="large-v3-turbo")
 WHISPER_MODEL_PATH = ""
 WHISPER_LANGUAGE = get_setting("Recognition", "whisper_language", default="en").strip().lower() or "en"

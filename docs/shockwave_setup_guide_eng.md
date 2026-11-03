@@ -114,7 +114,7 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Sound]` | `startup_sound` | `true` | `false` | Megatron greeting |
 | `[Sound]` | `alert_sound` | `true` | `true` | Ready chime |
 
-`[Console]` controls only the startup banner: `cli_title_color`, `cli_quote_color`, `cli_banner_pad`, `cli_quote_pad`, and `cli_title_pad`. It does not select a language. Old `language` and `APP_LANGUAGE` settings are ignored. Interface and console text are always English; this does not change the recognition language.
+`[Console]` controls only the startup banner: `cli_title_color`, `cli_quote_color`, `cli_banner_pad`, `cli_quote_pad`, and `cli_title_pad`. It does not select a language. Old `language` and `APP_LANGUAGE` settings are ignored and do not change the recognition language.
 
 Each `[Section]` heading must be on its own line. Older names in `[Recognition]`, `[Interface]`, `[Toggles]`, and `[Theme]` are still read when the current setting is absent.
 
@@ -126,7 +126,7 @@ Use a modifier plus a key, such as `ctrl+space`, `alt+space`, `ctrl+alt+f8`, or 
 
 ### Speech models
 
-- **Whisper** (`large-v3-turbo`) is the only speech engine. It uses faster-whisper on CPU in `int8` and always recognizes English.
+- **Whisper** (`large-v3-turbo`) is the only speech engine. It is a multilingual model and uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language.
 - Known Whisper downloads are `large-v3-turbo`, `large-v3`, `medium`, `small`, `base`, and `tiny`.
 - The model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded.
 - Weights are stored under `models\whisper` and `models\vosk-model-small-en-us`.

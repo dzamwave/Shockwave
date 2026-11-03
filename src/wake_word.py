@@ -155,7 +155,7 @@ class WakeWordDetector:
             return
 
         try:
-            print(f"[WakeWord] Loading Vosk English model from: {candidate_path} ...")
+            print(f"[WakeWord] Loading Vosk model from: {candidate_path} ...")
             # Suppress excessive Vosk log spam
             vosk.SetLogLevel(-1)
             self.model = vosk.Model(candidate_path)
