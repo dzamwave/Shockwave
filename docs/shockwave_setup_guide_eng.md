@@ -59,18 +59,18 @@ Shockwave sends text to one OpenAI-compatible chat-completions endpoint. Put the
 ```ini
 [LLM]
 endpoint = https://example.com/v1/chat/completions
-model = gemini-2.5-flash
+model = gemini-3.5-flash
 timeout = 25
 api_key =
 ```
 
-A blank `model` uses `gemini-2.5-flash`. A blank timeout uses 25 seconds. A blank `endpoint` disables LLM processing. Values are not read from `config\.env` or environment variables.
+A blank `model` uses `gemini-3.5-flash`. A blank timeout uses 25 seconds. A blank `endpoint` disables LLM processing. Values are not read from `config\.env` or environment variables.
 
 | Provider | Endpoint | Example model | Key |
 | :--- | :--- | :--- | :--- |
-| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | `gemini-2.5-flash` | [aistudio.google.com](https://aistudio.google.com/) |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | `gemini-3.5-flash` | [aistudio.google.com](https://aistudio.google.com/) |
 | OpenAI | `https://api.openai.com/v1/chat/completions` | `gpt-4o-mini` | [platform.openai.com](https://platform.openai.com/) |
-| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `google/gemini-2.5-flash` | [openrouter.ai](https://openrouter.ai/) |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `google/gemini-3.5-flash` | [openrouter.ai](https://openrouter.ai/) |
 | Ollama on this computer | `http://127.0.0.1:11434/v1/chat/completions` | `qwen2.5:7b` | Not required |
 
 Connection rules:

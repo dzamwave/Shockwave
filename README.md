@@ -15,7 +15,7 @@
 - **Whisper (`large-v3-turbo`)**: Multilingual speech recognition through `faster-whisper`. It is the only speech-to-text engine. Set the spoken language with `whisper_language` under `[Recognition]`, or use `auto` to detect it.
 
 ### Text Normalization Engine (LLM):
-- **OpenAI-compatible endpoint**: Punctuation, idea structuring, AI-task prompts, and English translation. The address, model, and API key come only from `[LLM]` in `config/config.ini`. A blank model uses `gemini-2.5-flash`.
+- **OpenAI-compatible endpoint**: Punctuation, idea structuring, AI-task prompts, and English translation. The address, model, and API key come only from `[LLM]` in `config/config.ini`. A blank model uses `gemini-3.5-flash`.
 
 ## Features
 

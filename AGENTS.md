@@ -23,7 +23,7 @@ Local, hands-free voice dictation for Windows, running in the background:
    * `AI task`: turn dictated speech into a clear, structured AI prompt. Mutually exclusive with `Idea`.
    * `to EN`: translate into English. With `AI task`, produce `AI task (EN)` in one request. With `Idea`, translate after structuring.
    * With `LLM norm`, `Idea`, and `to EN` enabled, run normalization, idea structuring, then translation.
-   * Connection values come only from `[LLM]` in `config/config.ini`. A blank model uses `gemini-2.5-flash`. Environment files are not read.
+   * Connection values come only from `[LLM]` in `config/config.ini`. A blank model uses `gemini-3.5-flash`. Environment files are not read.
    * HTTP is allowed only on loopback. External servers require HTTPS. Redirects (3xx) are rejected. Guardrail phrases detect provider warnings such as deprecation or model-not-found responses.
 5. **Interface:** Floating 32×32 px dot-matrix radar widget with a 5×5 LED matrix, eight toggles in two rows, and a system tray icon. Legacy interface language settings are ignored.
 6. **Recording watchdog:** After `warn_record_seconds` (default 150), the radar flashes red. At `max_record_seconds` (default 180), recording stops automatically.
@@ -69,7 +69,7 @@ Local, hands-free voice dictation for Windows, running in the background:
 | `[Text]` | `clip_prepend` | `false` | Prepend above clipboard content |
 | `[Text]` | `auto_paste` | `false` | Paste into the active input field |
 | `[LLM]` | `endpoint` | `""` | OpenAI-compatible API URL |
-| `[LLM]` | `model` | `gemini-2.5-flash` | LLM model |
+| `[LLM]` | `model` | `gemini-3.5-flash` | LLM model |
 | `[LLM]` | `api_key` | `""` | API key |
 | `[LLM]` | `timeout` | `25` | Request timeout in seconds |
 | `[Widget]` | `position` | `bottom-right` | Widget position |

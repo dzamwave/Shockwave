@@ -289,7 +289,7 @@ AUTO_PASTE = get_bool("Text", "auto_paste", "AUTO_PASTE", default=False)
 # --- LLM connection (config.ini [LLM] only) ---
 LLM_ENDPOINT = get_setting("LLM", "endpoint", "LLM_ENDPOINT", default="")
 LLM_API_KEY = get_setting("LLM", "api_key", "LLM_API_KEY", default="")
-LLM_MODEL = get_setting("LLM", "model", "LLM_MODEL", default="gemini-2.5-flash")
+LLM_MODEL = get_setting("LLM", "model", "LLM_MODEL", default="gemini-3.5-flash")
 LLM_TIMEOUT = get_int("LLM", "timeout", "LLM_TIMEOUT", default=25)
 
 def load_prompt(filename: str, default_text: str) -> str:

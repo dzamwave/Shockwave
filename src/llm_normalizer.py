@@ -108,7 +108,7 @@ class LLMNormalizer:
         reset = "\033[0m"
         system_prompt, action_name, max_tokens = _step_prompt(step)
         user_prompt = f"Raw transcript to process:\n{text}"
-        model_name = getattr(config, "LLM_MODEL", "gemini-2.5-flash-lite")
+        model_name = config.LLM_MODEL
         payload = {
             "model": model_name,
             "messages": [
