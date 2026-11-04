@@ -102,7 +102,8 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Recognition]` | `gigaam_quantization` | `int8` | `int8` | `int8` or `float32` |
 | `[Recognition]` | `onnx_optimize_memory` | `true` | `true` | Keep ONNX from reserving a large arena |
 | `[Recognition]` | `model_idle_timeout` | `300` | `300` | Idle seconds before unloading; `0` disables it |
-| `[Wake]` | `wake_word` | `shockwave` | `shockwave` | Trigger phrase |
+| `[Wake]` | `wake_word` | `shockwave` | `<shockwave>` | Trigger phrase; replace the placeholder |
+| `[Wake]` | `vosk_model` | `ru` | `<ru>` | `ru` or `en`; replace the placeholder |
 | `[Text]` | `llm_norm` | `false` | `false` | Punctuation normalization |
 | `[Text]` | `to_en` | `false` | `false` | English translation |
 | `[Text]` | `clip_prepend` | `false` | `false` | Put dictated text above clipboard content |
@@ -141,7 +142,7 @@ Use a modifier plus a key, such as `ctrl+space`, `alt+space`, `ctrl+alt+f8`, or 
 
 With `wake = true`, Vosk listens in the background. Set `vosk_model` under `[Wake]` to `ru` or `en`. This choice is separate from the speech model. The selected model is downloaded into its own folder when wake listening starts. Shockwave does not ask first. The phrase in `wake_word` must be in the language of the chosen model.
 
-The phrase comes from `[Wake] wake_word`. The built-in phrase and the example file both use `shockwave`. Matching is case-insensitive. A repeated detection is ignored for two seconds.
+The phrase comes from `[Wake] wake_word`. The built-in phrase is `shockwave`; `config.example.ini` uses the placeholder `<shockwave>`, which must be replaced. Matching is case-insensitive. A repeated detection is ignored for two seconds.
 
 Stopping by wake word keeps the whole recording. Only a recognized wake word at the very end of the transcript is removed. If it is not at the end, the transcript stays unchanged. While the main recording is active, the separate wake microphone is paused and resumes afterward.
 
