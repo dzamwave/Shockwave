@@ -53,5 +53,5 @@ Detailed guides are available below:
 ---
 
 <p align="center">
-  <img src="docs/control_panel.png?v=1.1.1" alt="Control Panel" width="753">
+  <img src="docs/control_panel.png?v=1.2.0" alt="Control Panel" width="1253">
 </p>

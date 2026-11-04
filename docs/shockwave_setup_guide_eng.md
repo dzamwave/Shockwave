@@ -102,22 +102,22 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Recognition]` | `gigaam_quantization` | `int8` | `int8` | `int8` or `float32` |
 | `[Recognition]` | `onnx_optimize_memory` | `true` | `true` | Keep ONNX from reserving a large arena |
 | `[Recognition]` | `model_idle_timeout` | `300` | `300` | Idle seconds before unloading; `0` disables it |
-| `[Wake]` | `wake` | `true` | `false` | Background wake-word listening |
 | `[Wake]` | `wake_word` | `shockwave` | `shockwave` | Trigger phrase |
-| `[Text]` | `llm_norm` | `false` | `true` | Punctuation normalization |
-| `[Text]` | `ai_task` | `false` | `false` | AI-prompt mode |
+| `[Text]` | `llm_norm` | `false` | `false` | Punctuation normalization |
 | `[Text]` | `to_en` | `false` | `false` | English translation |
+| `[Text]` | `clip_prepend` | `false` | `false` | Put dictated text above clipboard content |
+| `[Text]` | `wake` | `true` | `false` | Background wake-word listening |
+| `[Text]` | `alert` | `true` | `true` | Ready chime |
+| `[Text]` | `auto_paste` | `false` | `false` | Paste into the focused input |
+| `[Text]` | `ai_task` | `false` | `false` | AI-prompt mode |
 | `[Text]` | `idea` | `false` | `false` | Idea structuring |
 | `[Text]` | `mk_post` | `false` | `false` | One social-media post |
-| `[Text]` | `clip_prepend` | `false` | `false` | Put dictated text above clipboard content |
-| `[Text]` | `auto_paste` | `false` | `false` | Paste into the focused input |
 | `[LLM]` | `timeout` | `25` | blank, so `25` | Request timeout, in seconds |
 | `[Widget]` | `position` | `bottom-right` | `bottom-right` | `bottom-right`, `bottom-left`, or `top-center` |
 | `[Widget]` | `opacity` | `0.85` | `0.85` | Window opacity from 0.0 to 1.0 |
 | `[Widget]` | `ui_bg_color` | `#3b274d` | `#3b274d` | Widget background |
 | `[Widget]` | `ui_grip_color` | `#2c1c3b` | `#2c1c3b` | Darker widget color |
 | `[Sound]` | `startup_sound` | `true` | `false` | Megatron greeting |
-| `[Sound]` | `alert_sound` | `true` | `true` | Ready chime |
 
 `[Console]` controls only the startup banner: `cli_title_color`, `cli_quote_color`, `cli_banner_pad`, `cli_quote_pad`, and `cli_title_pad`. It does not select a language. Old `language` and `APP_LANGUAGE` settings are ignored and do not change the recognition language.
 

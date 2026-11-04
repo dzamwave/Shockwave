@@ -241,7 +241,7 @@ def get_float(section: str, option: str, env_var: str = None, default: float = 0
 
 # --- Sound ---
 STARTUP_SOUND = get_bool("Sound", "startup_sound", "STARTUP_SOUND", default=True)
-ALERT_SOUND = get_bool("Sound", "alert_sound", "ALERT_SOUND", default=True, aliases=[("Toggles", "alert_sound")])
+ALERT_SOUND = get_bool("Text", "alert", "ALERT_SOUND", default=True, aliases=[("Sound", "alert_sound"), ("Toggles", "alert_sound")])
 
 # --- Speech recognition ---
 def speech_engine(value: str) -> str:
@@ -304,7 +304,7 @@ VOSK_MODEL_URL = _VOSK_URLS[0]
 VOSK_MODEL = _VOSK_CHOICE
 
 # --- Wake word ---
-WAKE_WORD_ENABLED = get_bool("Wake", "wake", "WAKE_WORD_ENABLED", default=True, aliases=[("Toggles", "wake"), ("Recognition", "wake_word_enabled")])
+WAKE_WORD_ENABLED = get_bool("Text", "wake", "WAKE_WORD_ENABLED", default=True, aliases=[("Wake", "wake"), ("Toggles", "wake"), ("Recognition", "wake_word_enabled")])
 WAKE_WORD = get_setting("Wake", "wake_word", "WAKE_WORD", default="shockwave", aliases=[("Recognition", "wake_word")])
 
 # --- Recording ---
