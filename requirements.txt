@@ -6,6 +6,8 @@ soundfile
 numpy
 scipy
 faster-whisper
+onnxruntime
+onnx-asr
 huggingface-hub
 pillow
 av

@@ -138,7 +138,6 @@ class GlossaryManager:
 
             self._rules = compiled_rules
             self._last_mtime = mtime
-            print(f"[Glossary] Loaded {len(self._rules)} rules from {self.glossary_path}")
         except Exception as e:
             print(f"[Glossary] Error reading glossary file: {e}")
 

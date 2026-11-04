@@ -286,7 +286,7 @@ class WinVoiceUI:
         self.cancel_btn.bind("<Enter>", on_cancel_enter)
         self.cancel_btn.bind("<Leave>", on_cancel_leave)
         
-        # Checkbox controls container (two-row x three-column grid)
+        # Checkbox controls container (three rows, three columns)
         self.controls_frame = tk.Frame(self.right_frame, bg=self.COLOR_BG)
         self.controls_frame.pack(fill="x", pady=(1, 0))
         
@@ -335,16 +335,24 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_wake.grid(row=1, column=0, sticky="w", padx=(0, 8))
+        self.chk_wake.grid(row=1, column=0, sticky="w", padx=(0, 8), pady=(0, 2))
 
         # --- Column 1 ---
         # Row 0, Col 1: AI task checkbox
+        # Later columns assign these; declare them first so toggles can clear them.
+        self.idea_enabled = False
+        self.mk_post_enabled = False
+        self.use_idea_var = tk.BooleanVar(value=False)
+        self.use_mk_post_var = tk.BooleanVar(value=False)
         self.ai_task_enabled = getattr(config, "AI_TASK_MODE", False)
         def toggle_ai_task():
             self.ai_task_enabled = self.use_ai_task_var.get()
-            if self.ai_task_enabled and getattr(self, "idea_enabled", False):
+            if self.ai_task_enabled and self.idea_enabled:
                 self.idea_enabled = False
                 self.use_idea_var.set(False)
+            if self.ai_task_enabled and self.mk_post_enabled:
+                self.mk_post_enabled = False
+                self.use_mk_post_var.set(False)
 
         self.use_ai_task_var = tk.BooleanVar(value=self.ai_task_enabled)
         self.chk_ai_task = tk.Checkbutton(
@@ -361,7 +369,7 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_ai_task.grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(0, 2))
+        self.chk_ai_task.grid(row=2, column=0, sticky="w", padx=(0, 8))
 
         # Row 1, Col 1: Alert sound checkbox (aligned strictly under AI task)
         self.alert_enabled = getattr(config, "ALERT_SOUND", True)
@@ -383,7 +391,7 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_alert.grid(row=1, column=1, sticky="w", padx=(0, 8))
+        self.chk_alert.grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(0, 2))
 
         # --- Column 2 ---
         # Row 0, Col 2: to EN checkbox
@@ -406,7 +414,7 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_to_en.grid(row=0, column=2, sticky="w", padx=(0, 8), pady=(0, 2))
+        self.chk_to_en.grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(0, 2))
 
         # Row 1, Col 2: Clip+ checkbox (aligned strictly under to EN)
         self.clip_prepend_enabled = getattr(config, "CLIP_PREPEND", False)
@@ -428,22 +436,25 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_clip.grid(row=1, column=2, sticky="w", padx=(0, 8))
+        self.chk_clip.grid(row=0, column=2, sticky="w", padx=(0, 8), pady=(0, 2))
 
-        # --- Column 3 ---
-        # Row 0, Col 3: Idea checkbox
+        # --- Row 2 ---
+        # Row 2, Col 0: Idea checkbox
         self.idea_enabled = getattr(config, "IDEA_MODE", False)
         if self.idea_enabled and self.ai_task_enabled:
             self.ai_task_enabled = False
             self.use_ai_task_var.set(False)
+        self.use_idea_var.set(self.idea_enabled)
 
         def toggle_idea():
             self.idea_enabled = self.use_idea_var.get()
             if self.idea_enabled and self.ai_task_enabled:
                 self.ai_task_enabled = False
                 self.use_ai_task_var.set(False)
+            if self.idea_enabled and self.mk_post_enabled:
+                self.mk_post_enabled = False
+                self.use_mk_post_var.set(False)
 
-        self.use_idea_var = tk.BooleanVar(value=self.idea_enabled)
         self.chk_idea = tk.Checkbutton(
             self.controls_frame,
             text="Idea",
@@ -458,9 +469,41 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_idea.grid(row=0, column=3, sticky="w", pady=(0, 2))
+        self.chk_idea.grid(row=2, column=1, sticky="w", padx=(0, 8))
 
-        # Row 1, Col 3: paste clipboard into the active application
+        # Row 2, Col 1: mk Post checkbox
+        self.mk_post_enabled = getattr(config, "MK_POST_MODE", False)
+        if self.mk_post_enabled and (self.ai_task_enabled or self.idea_enabled):
+            self.mk_post_enabled = False
+
+        def toggle_mk_post():
+            self.mk_post_enabled = self.use_mk_post_var.get()
+            if self.mk_post_enabled:
+                if self.ai_task_enabled:
+                    self.ai_task_enabled = False
+                    self.use_ai_task_var.set(False)
+                if self.idea_enabled:
+                    self.idea_enabled = False
+                    self.use_idea_var.set(False)
+
+        self.use_mk_post_var.set(self.mk_post_enabled)
+        self.chk_mk_post = tk.Checkbutton(
+            self.controls_frame,
+            text="mk Post",
+            variable=self.use_mk_post_var,
+            command=toggle_mk_post,
+            bg=self.COLOR_BG,
+            fg=self.COLOR_MUTED,
+            selectcolor=self.COLOR_GRIP,
+            activebackground=self.COLOR_BG,
+            activeforeground="#ffffff",
+            font=("Segoe UI", 8),
+            cursor="hand2",
+            padx=0
+        )
+        self.chk_mk_post.grid(row=2, column=2, sticky="w")
+
+        # Row 2, Col 2: paste clipboard into the active application
         self.paste_enabled = getattr(config, "AUTO_PASTE", False)
         def toggle_paste():
             self.paste_enabled = self.use_paste_var.get()
@@ -480,7 +523,7 @@ class WinVoiceUI:
             cursor="hand2",
             padx=0
         )
-        self.chk_paste.grid(row=1, column=3, sticky="w")
+        self.chk_paste.grid(row=1, column=2, sticky="w")
         
         # Close button in top-right: exits application
         def on_close(event=None):
@@ -497,8 +540,8 @@ class WinVoiceUI:
             
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        width = 370
-        height = 80
+        width = 320
+        height = 102
         
         if position == "bottom-right":
             x = screen_width - width - 20

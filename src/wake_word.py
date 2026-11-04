@@ -53,8 +53,7 @@ def ensure_vosk_model(model_dir=None):
         print(f"[WakeWord] Incomplete Vosk model at {target_dir}; existing files preserved.")
         return None
     mirrors = []
-    for url in (getattr(config, "VOSK_MODEL_URL", None),
-                "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"):
+    for url in (getattr(config, "VOSK_MODEL_URLS", ()) or (getattr(config, "VOSK_MODEL_URL", None),)):
         if url and url not in mirrors:
             mirrors.append(url)
     staging = backup = None
@@ -74,7 +73,7 @@ def ensure_vosk_model(model_dir=None):
                         if os.path.commonpath((os.path.abspath(extracted), destination)) != os.path.abspath(extracted):
                             raise ValueError("Archive path outside staging directory")
                     archive.extractall(extracted)
-                model = os.path.join(extracted, "vosk-model-small-en-us-0.15")
+                model = os.path.join(extracted, config.VOSK_MODEL_NAME)
                 if not _valid_vosk_model(model):
                     raise ValueError("Archive does not contain a complete Vosk model")
                 break
@@ -117,7 +116,7 @@ class WakeWordDetector:
         self.on_wake_callback = on_wake_callback
         self.keyword = (keyword or getattr(config, "WAKE_WORD", "shockwave")).lower().strip()
 
-        default_model = getattr(config, "VOSK_MODEL_PATH", None) or os.path.join(config.MODELS_DIR, "vosk-model-small-en-us")
+        default_model = getattr(config, "VOSK_MODEL_PATH", None) or os.path.join(config.MODELS_DIR, "vosk-model-small-ru")
         self.model_path = model_path or default_model
         
         self.model = None
@@ -155,13 +154,11 @@ class WakeWordDetector:
             return
 
         try:
-            print(f"[WakeWord] Loading Vosk model from: {candidate_path} ...")
             # Suppress excessive Vosk log spam
             vosk.SetLogLevel(-1)
             self.model = vosk.Model(candidate_path)
             # Use full language model vocabulary so Vosk accurately distinguishes all words
             self.recognizer = vosk.KaldiRecognizer(self.model, 16000)
-            print(f"[WakeWord] Detector ready with full vocabulary for keyword: '{self.keyword}'")
         except Exception as e:
             print(f"[WakeWord] Model init error: {e}")
 

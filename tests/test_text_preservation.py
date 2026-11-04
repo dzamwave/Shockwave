@@ -56,6 +56,7 @@ class ResponsePreservationTests(unittest.TestCase):
 
     def test_valid_result_idea_mode_uses_idea_prompt_and_tokens(self):
         CONFIG.DEFAULT_IDEA_PROMPT = "idea prompt"
+        CONFIG.DEFAULT_IDEA_EN_PROMPT = "idea in English"
         result = self.normalizer.normalize_result(self.original, idea=True)
         self.assertEqual(result.text, "edited")
         self.assertTrue(result.succeeded)
@@ -195,7 +196,21 @@ class DictationPreservationTests(unittest.TestCase):
         self.app.process_audio_thread()
         self.copy.assert_called_once_with("structured idea", prepend_clipboard=False)
         self.assertEqual(normalized, [(self.transcript, {
-            "translate_en": False, "ai_task": False, "idea": True, "normalize": False,
+            "translate_en": False, "ai_task": False, "idea": True, "normalize": False, "mk_post": False,
+        })])
+
+    def test_mk_post_toggle_passes_post_mode_and_english_flag(self):
+        self.app.ui.mk_post_enabled = True
+        self.app.ui.translate_en_enabled = True
+        normalized = []
+        def normalize_result(text, **kwargs):
+            normalized.append((text, kwargs))
+            return types.SimpleNamespace(text="english post", succeeded=True, warning="")
+        self.app.llm = types.SimpleNamespace(normalize_result=normalize_result)
+        self.app.process_audio_thread()
+        self.copy.assert_called_once_with("english post", prepend_clipboard=False)
+        self.assertEqual(normalized, [(self.transcript, {
+            "translate_en": True, "ai_task": False, "idea": False, "normalize": False, "mk_post": True,
         })])
 
 

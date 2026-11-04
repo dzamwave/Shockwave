@@ -82,7 +82,7 @@ GLOSSARY_PATH = _find_file("glossary.txt")
 
 os.makedirs(MODELS_DIR, exist_ok=True)
 WHISPER_DIR = os.path.join(MODELS_DIR, "whisper")
-VOSK_DIR = os.path.join(MODELS_DIR, "vosk-model-small-en-us")
+GIGAAM_DIR = os.path.join(MODELS_DIR, "gigaam")
 
 os.environ["HF_HOME"] = MODELS_DIR
 os.environ["HF_HUB_CACHE"] = MODELS_DIR
@@ -244,14 +244,64 @@ STARTUP_SOUND = get_bool("Sound", "startup_sound", "STARTUP_SOUND", default=True
 ALERT_SOUND = get_bool("Sound", "alert_sound", "ALERT_SOUND", default=True, aliases=[("Toggles", "alert_sound")])
 
 # --- Speech recognition ---
-# Whisper is the only engine. A legacy engine value is ignored.
-WHISPER_MODEL = get_setting("Recognition", "whisper_model", "WHISPER_MODEL", default="large-v3-turbo")
+def speech_engine(value: str) -> str:
+    """Map a model choice to its recognizer."""
+    name = str(value).strip().lower()
+    if name.startswith("gigaam"):
+        return "gigaam"
+    if name in ("whisper", "whisper_model") or name.startswith("large") or name in ("medium", "small", "base", "tiny", "turbo"):
+        return "whisper"
+    return name
+
+# One setting selects both the engine and, for Whisper, the model size.
+# Older configs may still use engine plus whisper_model.
+_MODEL_CHOICE = get_setting(
+    "Recognition", "speech_recognition_model", "SPEECH_RECOGNITION_MODEL", default="", allow_empty=True
+).strip().lower()
+_LEGACY_ENGINE = get_setting("Recognition", "engine", "STT_ENGINE", default="", allow_empty=True).strip().lower()
+_LEGACY_WHISPER = get_setting("Recognition", "whisper_model", "WHISPER_MODEL", default="", allow_empty=True).strip()
+
+if _MODEL_CHOICE:
+    STT_ENGINE = speech_engine(_MODEL_CHOICE)
+    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
+    if STT_ENGINE == "whisper" and _MODEL_CHOICE not in ("whisper", "whisper_model"):
+        WHISPER_MODEL = _MODEL_CHOICE
+elif _LEGACY_ENGINE:
+    STT_ENGINE = speech_engine(_LEGACY_ENGINE)
+    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
+else:
+    STT_ENGINE = "whisper"
+    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
 WHISPER_MODEL_PATH = ""
 WHISPER_LANGUAGE = get_setting("Recognition", "whisper_language", default="en").strip().lower() or "en"
 
+GIGAAM_MODEL = get_setting("Recognition", "gigaam_model", "GIGAAM_MODEL", default="gigaam-v3-e2e-rnnt")
+GIGAAM_MODEL_PATH = ""
+GIGAAM_QUANTIZATION = get_setting("Recognition", "gigaam_quantization", "GIGAAM_QUANTIZATION", default="int8", allow_empty=True).lower()
+if GIGAAM_QUANTIZATION in ("", "none", "fp32"):
+    GIGAAM_QUANTIZATION = "float32"
+
 MODEL_IDLE_TIMEOUT = get_int("Recognition", "model_idle_timeout", "MODEL_IDLE_TIMEOUT", default=300)
+ONNX_OPTIMIZE_MEMORY = get_bool("Recognition", "onnx_optimize_memory", "ONNX_OPTIMIZE_MEMORY", default=True)
+
+# Wake listening has its own model choice, independent of the speech model.
+_VOSK_MODELS = {
+    "ru": ("vosk-model-small-ru", "vosk-model-small-ru-0.22",
+           ("https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip",
+            "https://huggingface.co/alphacep/vosk-model-small-ru/resolve/main/vosk-model-small-ru-0.22.zip")),
+    "en": ("vosk-model-small-en-us", "vosk-model-small-en-us-0.15",
+           ("https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",)),
+}
+_VOSK_CHOICE = get_setting("Wake", "vosk_model", "VOSK_MODEL", default="ru", allow_empty=True).strip().lower()
+if _VOSK_CHOICE not in _VOSK_MODELS:
+    print(f"[Config] Unknown vosk_model '{_VOSK_CHOICE}'. Using ru.")
+    _VOSK_CHOICE = "ru"
+_VOSK_FOLDER, VOSK_MODEL_NAME, _VOSK_URLS = _VOSK_MODELS[_VOSK_CHOICE]
+VOSK_DIR = os.path.join(MODELS_DIR, _VOSK_FOLDER)
 VOSK_MODEL_PATH = VOSK_DIR
-VOSK_MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+VOSK_MODEL_URLS = _VOSK_URLS
+VOSK_MODEL_URL = _VOSK_URLS[0]
+VOSK_MODEL = _VOSK_CHOICE
 
 # --- Wake word ---
 WAKE_WORD_ENABLED = get_bool("Wake", "wake", "WAKE_WORD_ENABLED", default=True, aliases=[("Toggles", "wake"), ("Recognition", "wake_word_enabled")])
@@ -271,7 +321,7 @@ UI_GRIP_COLOR = get_setting("Widget", "ui_grip_color", "UI_GRIP_COLOR", default=
 # --- Console ---
 # Compatibility constant; legacy language settings no longer select a UI language.
 APP_LANGUAGE = "en"
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.2.0"
 CLI_TITLE_COLOR = get_setting("Console", "cli_title_color", "CLI_TITLE_COLOR", default="#B45FEB", aliases=[("Theme", "cli_title_color")])
 CLI_QUOTE_COLOR = get_setting("Console", "cli_quote_color", "CLI_QUOTE_COLOR", default="#807785", aliases=[("Theme", "cli_quote_color")])
 CLI_BANNER_PAD = get_int("Console", "cli_banner_pad", "CLI_BANNER_PAD", default=3, aliases=[("Theme", "cli_banner_pad")])
@@ -283,6 +333,7 @@ LLM_NORM = get_bool("Text", "llm_norm", "LLM_NORM", default=False, aliases=[("To
 AI_TASK_MODE = get_bool("Text", "ai_task", "AI_TASK_MODE", default=False, aliases=[("Toggles", "ai_task")])
 TRANSLATE_EN = get_bool("Text", "to_en", "TRANSLATE_EN", default=False, aliases=[("Toggles", "to_en")])
 IDEA_MODE = get_bool("Text", "idea", "IDEA_MODE", default=False, aliases=[("Toggles", "idea")])
+MK_POST_MODE = get_bool("Text", "mk_post", "MK_POST_MODE", default=False, aliases=[("Toggles", "mk_post")])
 CLIP_PREPEND = get_bool("Text", "clip_prepend", "CLIP_PREPEND", default=False, aliases=[("Toggles", "clip_prepend")])
 AUTO_PASTE = get_bool("Text", "auto_paste", "AUTO_PASTE", default=False)
 
@@ -291,6 +342,12 @@ LLM_ENDPOINT = get_setting("LLM", "endpoint", "LLM_ENDPOINT", default="")
 LLM_API_KEY = get_setting("LLM", "api_key", "LLM_API_KEY", default="")
 LLM_MODEL = get_setting("LLM", "model", "LLM_MODEL", default="gemini-3.5-flash")
 LLM_TIMEOUT = get_int("LLM", "timeout", "LLM_TIMEOUT", default=25)
+
+# Used only when normalization is the only selected text mode.
+LLM_NORMALIZE_ENDPOINT = get_setting("LLM Normalize", "endpoint", "LLM_NORMALIZE_ENDPOINT", default="")
+LLM_NORMALIZE_API_KEY = get_setting("LLM Normalize", "api_key", "LLM_NORMALIZE_API_KEY", default="")
+LLM_NORMALIZE_MODEL = get_setting("LLM Normalize", "model", "LLM_NORMALIZE_MODEL", default=LLM_MODEL)
+LLM_NORMALIZE_TIMEOUT = get_int("LLM Normalize", "timeout", "LLM_NORMALIZE_TIMEOUT", default=LLM_TIMEOUT)
 
 def load_prompt(filename: str, default_text: str) -> str:
     """Loads a prompt from a markdown file in config/prompts/.
@@ -391,3 +448,49 @@ Worth exploring: 1-2 directions to develop, if my words offer potential for a fo
 Do not aim for perfect polish. Prioritize the originality of the thought and the author's natural voice."""
 
 LLM_PROMPT_IDEA = get_prompt("idea.md", "idea", DEFAULT_IDEA_PROMPT)
+
+DEFAULT_IDEA_EN_PROMPT = """Turn raw streams of thought into clear idea drafts for future posts, not finished publications.
+
+Rules:
+1. Extract key ideas, observations, questions.
+2. Cut filler, repetition, irrelevant tangents.
+3. Structure thoughts; preserve meaning, details, reasoning.
+4. Keep conversational voice, humor, self-irony.
+5. Never invent ideas, facts, interpretations, conclusions.
+6. Preserve doubts, contradictions, unresolved thoughts.
+7. Separate independent ideas; never merge forcibly.
+8. Output in natural English only. No commentary.
+
+Output format per idea:
+- **Core Idea:** Brief summary.
+- **Refined Thought:** 1–3 concise first-person paragraphs, close to original.
+- **Worth Exploring:** Open questions or unresolved points from original, if any.
+
+Priority: Authenticity and voice over polish."""
+
+LLM_PROMPT_IDEA_EN = get_prompt("idea_en.md", "idea_en", DEFAULT_IDEA_EN_PROMPT)
+
+DEFAULT_MK_POST_PROMPT = """Turn the dictated speech into one ready-to-publish social media post.
+
+Rules:
+1. Keep the author's voice, opinions, humor, and point of view. Write in the first person when the speech is first person.
+2. Remove filler, false starts, and repetition. Keep the facts, numbers, names, and claims that were actually said.
+3. Do not add new facts, advice, hashtags, emojis, calls to action, or a title unless the speaker asked for them.
+4. Keep it short enough to post: one hook sentence, then the point. Use a line break only when it helps reading.
+5. Preserve the original language of the speech. Do not translate.
+6. Return only the post text. No preamble, labels, or commentary.
+"""
+
+DEFAULT_MK_POST_EN_PROMPT = """Turn the dictated speech into one ready-to-publish social media post in English.
+
+Rules:
+1. Keep the author's voice, opinions, humor, and point of view. Write in the first person when the speech is first person.
+2. Translate the meaning into natural English. Do not leave untranslated sentences from the source language.
+3. Remove filler, false starts, and repetition. Keep the facts, numbers, names, and claims that were actually said.
+4. Do not add new facts, advice, hashtags, emojis, calls to action, or a title unless the speaker asked for them.
+5. Keep it short enough to post: one hook sentence, then the point. Use a line break only when it helps reading.
+6. Return only the English post text. No preamble, labels, or commentary.
+"""
+
+LLM_PROMPT_MK_POST = get_prompt("mk_post.md", "mk_post", DEFAULT_MK_POST_PROMPT)
+LLM_PROMPT_MK_POST_EN = get_prompt("mk_post_en.md", "mk_post_en", DEFAULT_MK_POST_EN_PROMPT)

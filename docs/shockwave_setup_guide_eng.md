@@ -1,6 +1,6 @@
 # Shockwave — Setup & User Guide
 
-Version 1.1.2. Windows only.
+Version 1.2.0. Windows only.
 
 Shockwave is a background dictation tool. Speech is recognized locally. The result is copied to the clipboard, and can optionally be pasted into the window that currently has the input focus.
 
@@ -14,7 +14,7 @@ There are three ways to record:
 
 ## Quick start (no Python required)
 
-1. Download the latest `Shockwave-v1.1.2-Windows-x64.zip` from [GitHub Releases](https://github.com/dzamwave/shockwave/releases).
+1. Download the latest `Shockwave-v1.2.0-Windows-x64.zip` from [GitHub Releases](https://github.com/dzamwave/shockwave/releases).
 2. Extract it to any folder, for example `C:\Shockwave`.
 3. Edit `config\config.ini`. The packaged release already contains a working file; the template is `config\config.example.ini`.
 4. Run `Shockwave.exe` from the `Shockwave` folder. The executable is not placed directly in `dist`.
@@ -54,7 +54,7 @@ The shortcut starts the console. Shockwave then hides that console to the tray i
 
 ## LLM setup
 
-Shockwave sends text to one OpenAI-compatible chat-completions endpoint. Put the connection in `[LLM]`:
+Shockwave sends text to OpenAI-compatible chat-completions endpoints. Put the main connection in `[LLM]`. It serves `to EN`, `mk Post`, `Idea`, and `AI task`:
 
 ```ini
 [LLM]
@@ -64,7 +64,9 @@ timeout = 25
 api_key =
 ```
 
-A blank `model` uses `gemini-3.5-flash`. A blank timeout uses 25 seconds. A blank `endpoint` disables LLM processing. Values are not read from `config\.env` or environment variables.
+`[LLM Normalize]` is optional. It is used only when `LLM norm` is selected alone. Any other selected text mode uses `[LLM]`, even when `LLM norm` is also checked. Leave its endpoint blank to use `[LLM]`.
+
+A blank `model` uses `gemini-3.5-flash`. A blank timeout uses 25 seconds. A blank main `endpoint` disables that LLM. Values are not read from `config\.env` or environment variables.
 
 | Provider | Endpoint | Example model | Key |
 | :--- | :--- | :--- | :--- |
@@ -96,7 +98,9 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Recording]` | `hotkey` | `ctrl+space` | `ctrl+space` | Global hotkey |
 | `[Recording]` | `max_record_seconds` | `180` | `180` | Automatic stop, in seconds |
 | `[Recording]` | `warn_record_seconds` | `150` | `150` | Red radar warning |
-| `[Recognition]` | `whisper_model` | `large-v3-turbo` | `large-v3-turbo` | Whisper model |
+| `[Recognition]` | `speech_recognition_model` | `large-v3-turbo` | `large-v3-turbo` | Whisper name, or `gigaam-v3-e2e-rnnt` |
+| `[Recognition]` | `gigaam_quantization` | `int8` | `int8` | `int8` or `float32` |
+| `[Recognition]` | `onnx_optimize_memory` | `true` | `true` | Keep ONNX from reserving a large arena |
 | `[Recognition]` | `model_idle_timeout` | `300` | `300` | Idle seconds before unloading; `0` disables it |
 | `[Wake]` | `wake` | `true` | `false` | Background wake-word listening |
 | `[Wake]` | `wake_word` | `shockwave` | `shockwave` | Trigger phrase |
@@ -104,6 +108,7 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Text]` | `ai_task` | `false` | `false` | AI-prompt mode |
 | `[Text]` | `to_en` | `false` | `false` | English translation |
 | `[Text]` | `idea` | `false` | `false` | Idea structuring |
+| `[Text]` | `mk_post` | `false` | `false` | One social-media post |
 | `[Text]` | `clip_prepend` | `false` | `false` | Put dictated text above clipboard content |
 | `[Text]` | `auto_paste` | `false` | `false` | Paste into the focused input |
 | `[LLM]` | `timeout` | `25` | blank, so `25` | Request timeout, in seconds |
@@ -126,14 +131,15 @@ Use a modifier plus a key, such as `ctrl+space`, `alt+space`, `ctrl+alt+f8`, or 
 
 ### Speech models
 
-- **Whisper** (`large-v3-turbo`) is the only speech engine. It is a multilingual model and uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language.
+- **Whisper** (`large-v3-turbo`) is the default speech engine. It is multilingual and uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language.
+- **GigaAM** (`gigaam-v3-e2e-rnnt`) is the optional Russian model. Select it with `speech_recognition_model = gigaam-v3-e2e-rnnt`. It uses ONNX Runtime on CPU. `int8` is smaller; `float32` is full precision. It ignores `whisper_language`. An older `engine` plus `whisper_model` pair is still read when the new setting is absent.
 - Known Whisper downloads are `large-v3-turbo`, `large-v3`, `medium`, `small`, `base`, and `tiny`.
-- The model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded.
-- Weights are stored under `models\whisper` and `models\vosk-model-small-en-us`.
+- The selected model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded.
+- Weights are stored under `models\whisper`, `models\gigaam`, `models\vosk-model-small-ru`, and `models\vosk-model-small-en-us`.
 
 ### Wake word
 
-With `wake = true`, Vosk listens in the background using `vosk-model-small-en-us-0.15`. If that model is missing, Shockwave downloads it automatically when wake listening starts. It does not ask first.
+With `wake = true`, Vosk listens in the background. Set `vosk_model` under `[Wake]` to `ru` or `en`. This choice is separate from the speech model. The selected model is downloaded into its own folder when wake listening starts. Shockwave does not ask first. The phrase in `wake_word` must be in the language of the chosen model.
 
 The phrase comes from `[Wake] wake_word`. The built-in phrase and the example file both use `shockwave`. Matching is case-insensitive. A repeated detection is ignored for two seconds.
 
@@ -147,7 +153,7 @@ If the file does not exist, Shockwave creates a template containing development 
 
 ### Prompts
 
-Five prompts are available: `normalization.md`, `translate_en.md`, `ai_task.md`, `ai_task_en.md`, and `idea.md`.
+Eight prompts are available: `normalization.md`, `translate_en.md`, `ai_task.md`, `ai_task_en.md`, `idea.md`, `idea_en.md`, `mk_post.md`, and `mk_post_en.md`.
 
 The priority is `[Prompts]` in `config.ini`, then the Markdown file in `config\prompts`, then the built-in text. A missing Markdown file is created with that built-in text on launch. Put a long prompt in its Markdown file rather than on one `config.ini` line.
 
@@ -170,12 +176,14 @@ LLM steps:
 - `AI task`: a structured prompt in the spoken language. Shockwave does not answer the request.
 - `to EN`: an English translation.
 - `AI task` + `to EN`: one request produces `AI task (EN)`.
+- `mk Post`: one social-media post in the spoken language. Shockwave does not add facts the speaker did not say.
+- `mk Post` + `to EN`: one request writes that post in English.
 - `Idea`: a draft with a hook, a cleaned-up first-person summary, and possible directions to develop. The author's language and voice are preserved.
-- `LLM norm` + `Idea`: punctuation first, then idea structuring.
-- `Idea` + `to EN`: structuring first, then translation.
-- `LLM norm` + `Idea` + `to EN`: punctuation, structuring, then translation.
+- `LLM norm` + `Idea`: one request, idea structuring only. `LLM norm` is not run.
+- `Idea` + `to EN`: one request produces the idea draft in English. `LLM norm` is not run.
+- `LLM norm` + `Idea` + `to EN`: one request, the same English idea draft. `LLM norm` is not run.
 
-`Idea` and `AI task` cannot be active together. Enabling one turns the other off. If both are set at startup, `AI task` is turned off.
+`Idea`, `AI task`, and `mk Post` cannot be active together. Enabling one turns the others off. If more than one is set at startup, `mk Post` is turned off first, then `AI task` yields to `Idea`.
 
 `clip+` places the finished text above existing clipboard text, separated by one blank line. It can be combined with `paste`.
 
@@ -183,7 +191,7 @@ LLM steps:
 
 ## Widget and tray
 
-The widget is a borderless 370×80 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, and close button do not start a drag.
+The widget is a borderless 320×102 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, and close button do not start a drag.
 
 The left control is a 32×32 radar with a 5×5 LED matrix. Click it to start or stop. During recording it shows a rotating gold sweep. After `warn_record_seconds`, the sweep turns into a flashing red warning. At `max_record_seconds`, recording stops and is transcribed.
 
@@ -191,9 +199,11 @@ The status line shows `what is your command?` when idle, then `record`, `process
 
 The countdown beside `cancel` starts at `max_record_seconds`, normally `03:00`, and reaches `00:00`.
 
-Row 1: `LLM norm`, `AI task`, `to EN`, `Idea`.
+Row 1: `LLM norm`, `to EN`, `clip+`.
 
-Row 2: `wake`, `alert`, `clip+`, `paste`.
+Row 2: `wake`, `alert`, `paste`.
+
+Row 3: `AI task`, `Idea`, `mk Post`.
 
 - `wake` starts or stops background listening. Turning it off unloads Vosk.
 - `alert` plays the ready chime. It also plays when a wake word starts recording.

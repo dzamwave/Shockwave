@@ -94,8 +94,74 @@ class ModelSettingsTests(unittest.TestCase):
         self.assertEqual(self.reload_config().APP_LANGUAGE, "en")
 
     def test_whisper_model_name_is_read(self):
-        self.ini.write_text("[Recognition]\nwhisper_model = small\n", encoding="utf-8")
-        self.assertEqual(self.reload_config().WHISPER_MODEL, "small")
+        self.ini.write_text("[Recognition]\nspeech_recognition_model = small\n", encoding="utf-8")
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.STT_ENGINE, "whisper")
+        self.assertEqual(reloaded.WHISPER_MODEL, "small")
+
+    def test_missing_engine_stays_on_whisper(self):
+        self.ini.write_text("[Recognition]\nwhisper_language = ru\n", encoding="utf-8")
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.STT_ENGINE, "whisper")
+        self.assertEqual(reloaded.WHISPER_MODEL, "large-v3-turbo")
+        self.assertEqual(reloaded.GIGAAM_MODEL, "gigaam-v3-e2e-rnnt")
+        self.assertEqual(reloaded.GIGAAM_QUANTIZATION, "int8")
+        self.assertTrue(reloaded.ONNX_OPTIMIZE_MEMORY)
+
+    def test_legacy_whisper_model_name_is_still_read(self):
+        self.ini.write_text("[Recognition]\nengine = whisper_model\nwhisper_model = small\n", encoding="utf-8")
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.STT_ENGINE, "whisper")
+        self.assertEqual(reloaded.WHISPER_MODEL, "small")
+
+    def test_gigaam_engine_and_quantization_are_read(self):
+        self.ini.write_text(
+            "[Recognition]\nspeech_recognition_model = gigaam-v3-e2e-rnnt\n"
+            "gigaam_quantization = float32\nonnx_optimize_memory = false\n",
+            encoding="utf-8",
+        )
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.STT_ENGINE, "gigaam")
+        self.assertEqual(reloaded.GIGAAM_MODEL, "gigaam-v3-e2e-rnnt")
+        self.assertEqual(reloaded.GIGAAM_QUANTIZATION, "float32")
+        self.assertFalse(reloaded.ONNX_OPTIMIZE_MEMORY)
+
+    def test_unknown_engine_is_rejected(self):
+        self.config.STT_ENGINE = "other"
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            with self.assertRaises(SystemExit):
+                self.manager.ensure_configured_model()
+        self.assertIn("unknown speech model", output.getvalue())
+
+    def test_gigaam_readiness_requires_int8_parts_and_vocab(self):
+        self.config.STT_ENGINE = "gigaam"
+        self.config.GIGAAM_MODEL = "gigaam-v3-e2e-rnnt"
+        self.config.GIGAAM_QUANTIZATION = "int8"
+        target = pathlib.Path(self.config.GIGAAM_DIR)
+        target.mkdir(parents=True)
+        self.assertFalse(self.manager.is_gigaam_downloaded())
+        for name in (
+            "v3_e2e_rnnt_encoder.int8.onnx",
+            "v3_e2e_rnnt_decoder.int8.onnx",
+            "v3_e2e_rnnt_joint.int8.onnx",
+            "v3_e2e_rnnt_vocab.txt",
+        ):
+            (target / name).write_bytes(b"fictional")
+        self.assertTrue(self.manager.is_gigaam_downloaded())
+
+    def test_gigaam_transcription_uses_recognize(self):
+        calls = []
+        model = types.SimpleNamespace(recognize=lambda data: calls.append(data.shape) or "russian text")
+        engine = self.audio_module.AudioEngine.__new__(self.audio_module.AudioEngine)
+        engine.get_or_load_model = lambda: model
+        engine.engine_type = "gigaam"
+        engine.audio_data = [np.ones((16000, 1), dtype=np.float32)]
+        engine.sample_rate = 16000
+        engine._audio_statuses = []
+        engine._last_used_time = 0.0
+        self.assertEqual(engine.transcribe(), "russian text")
+        self.assertEqual(calls, [(16000,)])
 
     def test_legacy_language_settings_cannot_change_english_interface(self):
         self.ini.write_text("[Console]\nlanguage = en\n[Interface]\nlanguage = en\n", encoding="utf-8")
@@ -125,8 +191,7 @@ class ModelSettingsTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 self.launcher.start_app()
         self.assertTrue(output.getvalue().isascii())
-        self.assertIn("Shockwave version: 1.1.2", output.getvalue())
-        self.assertIn("Recognition language: en", output.getvalue())
+        self.assertNotIn("Shockwave version:", output.getvalue())
 
     def test_grouped_sections_keep_current_values(self):
         self.ini.write_text(
@@ -216,7 +281,7 @@ class ModelSettingsTests(unittest.TestCase):
     def fake_download(self, url, destination):
         with zipfile.ZipFile(destination, "w") as archive:
             for name in ("am/final.mdl", "conf/mfcc.conf", "graph/HCLr.fst", "graph/Gr.fst"):
-                archive.writestr("vosk-model-small-en-us-0.15/" + name, b"fictional model")
+                archive.writestr("vosk-model-small-ru-0.22/" + name, b"fictional model")
 
     def test_vosk_download_populates_existing_placeholder_folder(self):
         target = pathlib.Path(self.config.VOSK_DIR)
@@ -248,7 +313,7 @@ class ModelSettingsTests(unittest.TestCase):
         (target / ".gitkeep").write_bytes(b"keep")
         rename = os.rename
         def fail_publication(source, destination):
-            if pathlib.Path(source).name == "vosk-model-small-en-us-0.15":
+            if pathlib.Path(source).name == "vosk-model-small-ru-0.22":
                 raise PermissionError("fictional publish failure")
             return rename(source, destination)
         with patch("urllib.request.urlretrieve", side_effect=self.fake_download), patch("os.rename", side_effect=fail_publication):
@@ -261,7 +326,7 @@ class ModelSettingsTests(unittest.TestCase):
 
         def bad_archive(url, destination):
             with zipfile.ZipFile(destination, "w") as archive:
-                archive.writestr("vosk-model-small-en-us-0.15/README", "not a model")
+                archive.writestr("vosk-model-small-ru-0.22/README", "not a model")
 
         with patch("urllib.request.urlretrieve", side_effect=bad_archive):
             self.assertIsNone(self.wake.ensure_vosk_model())

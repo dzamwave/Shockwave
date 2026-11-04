@@ -59,20 +59,8 @@ def start_app():
     clear_screen()
     print_banner()
 
-    engine = "whisper"
-    stt_display = f"Whisper ({config.WHISPER_MODEL})"
-
-    print(f"Starting Shockwave ({stt_display})...")
-    recognition_language = getattr(config, "WHISPER_LANGUAGE", "en").strip().lower() or "en"
-    print(f"Recognition language: {recognition_language}")
-    print(f"Shockwave version: {config.APP_VERSION}")
-    print(f"LLM model: {config.LLM_MODEL}")
-    print("Settings are read from config/config.ini.")
-
     import model_manager
     model_manager.ensure_configured_model()
-
-    print("Control panel minimizing to system tray (next to clock).")
 
     import main
     app = main.WinVoiceApp()

@@ -141,7 +141,6 @@ class SystemHotkeyManager:
         if not self._claim_register():
             self._register_ready.set()
             return
-        print(f"[Hotkey] Registered '{self.hotkey_str.upper()}' via Win32 RegisterHotKey (rock-solid).")
         self._register_ready.set()
 
         msg = ctypes.wintypes.MSG()

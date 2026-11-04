@@ -38,7 +38,8 @@ def load_module(name, filename, dependencies):
 
 with patch.object(importlib.metadata, "version", importlib.metadata.version):
     AUDIO = load_module("test_audio", "audio_engine.py", {})
-WAKE = load_module("test_wake", "wake_word.py", {"vosk": types.ModuleType("vosk")})
+vosk_stub = types.ModuleType("vosk")
+WAKE = load_module("test_wake", "wake_word.py", {"vosk": vosk_stub})
 
 deps = {"audio_engine": AUDIO, "wake_word": WAKE}
 for name, attributes in {
@@ -294,6 +295,7 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(text, "corrected text")
             self.assertTrue(translate_en and ai_task)
             self.assertFalse(kwargs.get("idea"))
+            self.assertFalse(kwargs.get("mk_post"))
             return types.SimpleNamespace(text="normalized text", succeeded=True, warning="")
 
         self.app.llm = types.SimpleNamespace(normalize_result=normalize)

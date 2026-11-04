@@ -31,6 +31,7 @@ class WinVoiceApp:
         self.llm = LLMNormalizer()
         self.typer = Typer()
         self.glossary = GlossaryManager(getattr(config, "GLOSSARY_PATH", None))
+        self._print_startup_summary()
         
         self.is_recording = False
         self.is_processing = False
@@ -63,7 +64,7 @@ class WinVoiceApp:
         icon_path = config.get_resource_path(os.path.join("icons", "icon.ico"))
         self.tray = SystemTrayManager(
             icon_path=icon_path,
-            tooltip=f"Shockwave v{getattr(config, 'APP_VERSION', '1.1.2')}",
+            tooltip=f"Shockwave v{getattr(config, 'APP_VERSION', '1.2.0')}",
             on_quit=self.quit_app,
             on_show_widget=self.show_widget_topmost
         )
@@ -71,15 +72,42 @@ class WinVoiceApp:
         
         # 4. Register permanent system-level hotkey via Win32 RegisterHotKey
         self.hotkey_mgr = SystemHotkeyManager(config.HOTKEY, self.toggle_recording)
-        yellow_radar = "\033[38;2;255;215;0m\033[1mRadar\033[0m"
         wake_keyword = getattr(config, "WAKE_WORD", "shockwave")
         if self.ui.wake_enabled:
-            print(f"Shockwave started. Press {config.HOTKEY.upper()}, click {yellow_radar} or say '{wake_keyword.capitalize()}' to record.")
+            self._startup_line("Press", f"{config.HOTKEY.upper()}, click Radar or say '{wake_keyword}' to record.")
         else:
-            print(f"Shockwave started. Press {config.HOTKEY.upper()} or click {yellow_radar} to record (Wake word disabled).")
+            self._startup_line("Press", f"{config.HOTKEY.upper()} or click Radar to record. Wake word disabled.")
         
         # Hide console window to system tray smoothly
         hide_console()
+
+    def _startup_line(self, label, value):
+        """Print one startup fact: the label in gray and its value in white."""
+        gray = "\033[38;2;150;150;150m"
+        white = "\033[38;2;255;255;255m"
+        reset = "\033[0m"
+        print(f"{gray}{label}:{reset} {white}{value}{reset}")
+
+    def _print_startup_summary(self):
+        """Print the selected runtime settings in a stable order."""
+        if getattr(config, "STT_ENGINE", "whisper") == "gigaam":
+            speech_model = f"{config.GIGAAM_MODEL}, {config.GIGAAM_QUANTIZATION}"
+            recognition_language = "ru"
+        else:
+            speech_model = config.WHISPER_MODEL
+            recognition_language = getattr(config, "WHISPER_LANGUAGE", "en").strip().lower() or "en"
+        glossary_path = getattr(self.glossary, "glossary_path", "")
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+        glossary_display = os.path.relpath(glossary_path, source_dir) if glossary_path else "glossary.txt"
+        settings_display = os.path.relpath(getattr(config, "CONFIG_INI_PATH", "config/config.ini"), source_dir)
+        self._startup_line("Shockwave version", getattr(config, "APP_VERSION", "1.2.0"))
+        self._startup_line("Settings are read from", settings_display)
+        self._startup_line("Speech Recognition Model", speech_model)
+        self._startup_line("WakeWord Model", os.path.basename(getattr(config, "VOSK_DIR", "")))
+        self._startup_line("Recognition language", recognition_language)
+        self._startup_line("LLM", config.LLM_MODEL)
+        self._startup_line("Normalization LLM", getattr(config, "LLM_NORMALIZE_MODEL", config.LLM_MODEL))
+        self._startup_line(f"Loaded {len(self.glossary._rules)} rules from", glossary_display)
 
     def show_widget_topmost(self):
         """Signals UI queue to display floating widget and bring it topmost above all windows."""
@@ -283,7 +311,7 @@ class WinVoiceApp:
             raw_text = processed_text
 
             # Check if LLM processing is requested by any mode toggle
-            needs_llm = self.ui.llm_enabled or self.ui.ai_task_enabled or self.ui.translate_en_enabled or getattr(self.ui, "idea_enabled", False)
+            needs_llm = self.ui.llm_enabled or self.ui.ai_task_enabled or self.ui.translate_en_enabled or getattr(self.ui, "idea_enabled", False) or getattr(self.ui, "mk_post_enabled", False)
             # If glossary processing failed, preserve the original instead of
             # applying further transformations and claiming it was saved unchanged.
             if needs_llm and not warnings:
@@ -295,6 +323,7 @@ class WinVoiceApp:
                         ai_task=self.ui.ai_task_enabled,
                         idea=getattr(self.ui, "idea_enabled", False),
                         normalize=self.ui.llm_enabled,
+                        mk_post=getattr(self.ui, "mk_post_enabled", False),
                     )
                     final_text = result.text if result.succeeded else raw_text
                     if not result.succeeded:

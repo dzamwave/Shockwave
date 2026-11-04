@@ -81,6 +81,24 @@ class WidgetDragTests(unittest.TestCase):
         self.assertTrue(self.widget.idea_enabled)
         self.assertFalse(self.widget.ai_task_enabled)
 
+    def test_mk_post_turns_off_ai_task_and_idea(self):
+        self.assertTrue(hasattr(self.widget, "chk_mk_post"))
+        self.assertEqual(self.widget.chk_mk_post.cget("text"), "mk Post")
+        self.widget.chk_ai_task.invoke()
+        self.widget.chk_mk_post.invoke()
+        self.assertTrue(self.widget.mk_post_enabled)
+        self.assertFalse(self.widget.ai_task_enabled)
+        self.assertFalse(self.widget.idea_enabled)
+        self.widget.chk_idea.invoke()
+        self.assertTrue(self.widget.idea_enabled)
+        self.assertFalse(self.widget.mk_post_enabled)
+        self.widget.chk_mk_post.invoke()
+        self.assertTrue(self.widget.mk_post_enabled)
+        self.assertFalse(self.widget.idea_enabled)
+        self.widget.chk_ai_task.invoke()
+        self.assertTrue(self.widget.ai_task_enabled)
+        self.assertFalse(self.widget.mk_post_enabled)
+
     def test_paste_checkbox_toggles(self):
         self.assertFalse(self.widget.paste_enabled)
         self.widget.chk_paste.invoke()

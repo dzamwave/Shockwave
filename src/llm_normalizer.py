@@ -38,16 +38,16 @@ def _validated_endpoint(value):
             raise ValueError("External LLM servers require HTTPS. HTTP is allowed only on this computer.")
     return endpoint
 
-def _processing_steps(translate_en, ai_task, idea, normalize):
-    """Idea runs after punctuation and before English. Other modes stay one request."""
+def _processing_steps(translate_en, ai_task, idea, normalize, mk_post=False):
+    """Each selected mode is one request. Combined modes use their own prompt."""
+    if idea and translate_en:
+        return ["idea_en"]
     if idea:
-        steps = []
-        if normalize:
-            steps.append("normalize")
-        steps.append("idea")
-        if translate_en:
-            steps.append("translate")
-        return steps
+        return ["idea"]
+    if mk_post and translate_en:
+        return ["mk_post_en"]
+    if mk_post:
+        return ["mk_post"]
     if translate_en and ai_task:
         return ["ai_task_en"]
     if ai_task:
@@ -57,8 +57,14 @@ def _processing_steps(translate_en, ai_task, idea, normalize):
     return ["normalize"]
 
 def _step_prompt(step):
+    if step == "idea_en":
+        return getattr(config, "LLM_PROMPT_IDEA_EN", config.DEFAULT_IDEA_EN_PROMPT), "Structuring idea (EN)", 2048
     if step == "idea":
         return getattr(config, "LLM_PROMPT_IDEA", config.DEFAULT_IDEA_PROMPT), "Structuring idea", 2048
+    if step == "mk_post_en":
+        return getattr(config, "LLM_PROMPT_MK_POST_EN", config.DEFAULT_MK_POST_EN_PROMPT), "Making post (EN)", 1024
+    if step == "mk_post":
+        return getattr(config, "LLM_PROMPT_MK_POST", config.DEFAULT_MK_POST_PROMPT), "Making post", 1024
     if step == "ai_task_en":
         return getattr(config, "LLM_PROMPT_AI_TASK_EN", config.DEFAULT_AI_TASK_EN_PROMPT), "Generating AI task (EN)", 1024
     if step == "ai_task":
@@ -68,47 +74,60 @@ def _step_prompt(step):
     return config.STT_SYSTEM_PROMPT, "Normalizing", 1024
 
 class LLMNormalizer:
-    def normalize(self, text, translate_en=False, ai_task=False, idea=False, normalize=False):
+    def normalize(self, text, translate_en=False, ai_task=False, idea=False, normalize=False, mk_post=False):
         """Keep the text-only API for callers that do not display processing status."""
         return self.normalize_result(
-            text, translate_en=translate_en, ai_task=ai_task, idea=idea, normalize=normalize
+            text, translate_en=translate_en, ai_task=ai_task, idea=idea, normalize=normalize, mk_post=mk_post
         ).text
 
-    def normalize_result(self, text, translate_en=False, ai_task=False, idea=False, normalize=False):
+    def normalize_result(self, text, translate_en=False, ai_task=False, idea=False, normalize=False, mk_post=False):
         if not text:
             return NormalizationResult("", True)
 
         red = "\033[38;2;231;76;60m"
         reset = "\033[0m"
 
-        if not config.LLM_ENDPOINT:
+        if not config.LLM_ENDPOINT and not getattr(config, "LLM_NORMALIZE_ENDPOINT", ""):
             print(f"{red}Notice: LLM Endpoint is not configured. Returning raw transcript.{reset}")
             return NormalizationResult(text, False, "LLM server is not configured.")
 
-        try:
-            endpoint = _validated_endpoint(config.LLM_ENDPOINT)
-        except ValueError as e:
-            print(f"{red}LLM: {e} Original text preserved.{reset}")
-            return NormalizationResult(text, False, str(e))
-
-        headers = {"Content-Type": "application/json"}
-        if config.LLM_API_KEY:
-            headers["Authorization"] = f"Bearer {config.LLM_API_KEY}"
-
         current = text
-        for step in _processing_steps(translate_en, ai_task, idea, normalize):
-            result = self._apply_step(endpoint, headers, current, step)
+        for step in _processing_steps(translate_en, ai_task, idea, normalize, mk_post=mk_post):
+            try:
+                endpoint, headers, model_name, timeout_sec = self._connection(step)
+            except ValueError as e:
+                print(f"{red}LLM: {e} Original text preserved.{reset}")
+                return NormalizationResult(text, False, str(e))
+            result = self._apply_step(endpoint, headers, current, step, model_name, timeout_sec)
             if not result.succeeded:
                 return NormalizationResult(text, False, result.warning)
             current = result.text
         return NormalizationResult(current, True)
 
-    def _apply_step(self, endpoint, headers, text, step):
+    def _connection(self, step):
+        """Normalization alone can use its own server. Every other mode uses [LLM]."""
+        if step == "normalize" and getattr(config, "LLM_NORMALIZE_ENDPOINT", ""):
+            endpoint = config.LLM_NORMALIZE_ENDPOINT
+            api_key = getattr(config, "LLM_NORMALIZE_API_KEY", "")
+            model_name = getattr(config, "LLM_NORMALIZE_MODEL", config.LLM_MODEL)
+            timeout_sec = getattr(config, "LLM_NORMALIZE_TIMEOUT", getattr(config, "LLM_TIMEOUT", 25))
+        else:
+            endpoint = config.LLM_ENDPOINT
+            api_key = config.LLM_API_KEY
+            model_name = config.LLM_MODEL
+            timeout_sec = getattr(config, "LLM_TIMEOUT", 25)
+        if not endpoint:
+            raise ValueError("LLM server is not configured.")
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        return _validated_endpoint(endpoint), headers, model_name, timeout_sec
+
+    def _apply_step(self, endpoint, headers, text, step, model_name, timeout_sec):
         red = "\033[38;2;231;76;60m"
         reset = "\033[0m"
         system_prompt, action_name, max_tokens = _step_prompt(step)
         user_prompt = f"Raw transcript to process:\n{text}"
-        model_name = config.LLM_MODEL
         payload = {
             "model": model_name,
             "messages": [
@@ -120,8 +139,7 @@ class LLMNormalizer:
         }
 
         print(f"{action_name} with {model_name}... ", end="", flush=True)
-        
-        timeout_sec = getattr(config, "LLM_TIMEOUT", 25)
+
         try:
             options = {"allow_redirects": False}
             if urlsplit(endpoint).scheme == "http":
@@ -182,7 +200,7 @@ class LLMNormalizer:
             print(f"{red}Failed (Connection timeout: server did not respond within {timeout_sec}s){reset}")
             return NormalizationResult(text, False, "LLM request timed out.")
         except requests.exceptions.ConnectionError:
-            print(f"{red}Failed (Connection error: unable to reach endpoint {config.LLM_ENDPOINT}){reset}")
+            print(f"{red}Failed (Connection error: unable to reach endpoint {endpoint}){reset}")
             return NormalizationResult(text, False, "Could not connect to the LLM server.")
         except requests.exceptions.RequestException as e:
             print(f"{red}Failed ({e}){reset}")
