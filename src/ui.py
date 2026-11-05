@@ -524,7 +524,38 @@ class WinVoiceUI:
             padx=0
         )
         self.chk_paste.grid(row=1, column=2, sticky="w")
-        
+
+        # Row 3: Russian GigaAM, or the Parakeet/Whisper model named in config.ini.
+        self.recognition_mode = tk.StringVar(value=getattr(config, "RECOGNITION_MODE", "ru"))
+
+        def choose_recognition_mode():
+            mode = self.recognition_mode.get()
+            config.RECOGNITION_MODE = mode
+            save_setting = getattr(config, "save_setting", None)
+            if save_setting is None:
+                return
+            try:
+                save_setting("RECOGNITION_MODE", mode)
+            except Exception as e:
+                print(f"[UI] Could not save recognition mode: {e}")
+
+        self.rad_ru = tk.Radiobutton(
+            self.controls_frame, text="ru", variable=self.recognition_mode, value="ru",
+            command=choose_recognition_mode,
+            bg=self.COLOR_BG, fg=self.COLOR_MUTED, selectcolor=self.COLOR_GRIP,
+            activebackground=self.COLOR_BG, activeforeground="#ffffff",
+            font=("Segoe UI", 8), cursor="hand2", padx=0,
+        )
+        self.rad_ru.grid(row=3, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
+        self.rad_multi = tk.Radiobutton(
+            self.controls_frame, text="multi", variable=self.recognition_mode, value="multi",
+            command=choose_recognition_mode,
+            bg=self.COLOR_BG, fg=self.COLOR_MUTED, selectcolor=self.COLOR_GRIP,
+            activebackground=self.COLOR_BG, activeforeground="#ffffff",
+            font=("Segoe UI", 8), cursor="hand2", padx=0,
+        )
+        self.rad_multi.grid(row=3, column=1, sticky="w", padx=(0, 8), pady=(2, 0))
+
         # Close button in top-right: exits application
         def on_close(event=None):
             self.root.quit()
@@ -541,7 +572,7 @@ class WinVoiceUI:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         width = 320
-        height = 102
+        height = 120
         
         if position == "bottom-right":
             x = screen_width - width - 20

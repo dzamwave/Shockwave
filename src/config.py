@@ -83,6 +83,8 @@ GLOSSARY_PATH = _find_file("glossary.txt")
 os.makedirs(MODELS_DIR, exist_ok=True)
 WHISPER_DIR = os.path.join(MODELS_DIR, "whisper")
 GIGAAM_DIR = os.path.join(MODELS_DIR, "gigaam")
+PARAKEET_DIR = os.path.join(MODELS_DIR, "parakeet")
+VAD_DIR = os.path.join(MODELS_DIR, "vad")
 
 os.environ["HF_HOME"] = MODELS_DIR
 os.environ["HF_HUB_CACHE"] = MODELS_DIR
@@ -154,6 +156,7 @@ def save_setting(name: str, value: str):
     locations = {
         "WAKE_WORD": [("Wake", "wake_word"), ("Recognition", "wake_word")],
         "APP_LANGUAGE": [("Console", "language"), ("Interface", "language")],
+        "RECOGNITION_MODE": [("Recognition", "recognition_mode")],
     }
     choices = locations[name]
     section, option = choices[0]
@@ -249,6 +252,8 @@ def speech_engine(value: str) -> str:
     name = str(value).strip().lower()
     if name.startswith("gigaam"):
         return "gigaam"
+    if "parakeet" in name:
+        return "parakeet"
     if name in ("whisper", "whisper_model") or name.startswith("large") or name in ("medium", "small", "base", "tiny", "turbo"):
         return "whisper"
     return name
@@ -274,6 +279,25 @@ else:
     WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
 WHISPER_MODEL_PATH = ""
 WHISPER_LANGUAGE = get_setting("Recognition", "whisper_language", default="en").strip().lower() or "en"
+
+# ru always uses GigaAM. multi uses the model named above when it is
+# Parakeet or Whisper, and falls back to Parakeet for a Russian-only name.
+RECOGNITION_MODE = get_setting(
+    "Recognition", "recognition_mode", "RECOGNITION_MODE", default="ru"
+).strip().lower() or "ru"
+if RECOGNITION_MODE not in ("ru", "multi"):
+    print(f"[Config] Unknown recognition_mode '{RECOGNITION_MODE}'. Using ru.")
+    RECOGNITION_MODE = "ru"
+_PARAKEET_NAME = "nemo-parakeet-tdt-0.6b-v3"
+if STT_ENGINE == "parakeet":
+    MULTI_ENGINE = "parakeet"
+    MULTI_MODEL = _MODEL_CHOICE or _PARAKEET_NAME
+elif STT_ENGINE == "whisper":
+    MULTI_ENGINE = "whisper"
+    MULTI_MODEL = WHISPER_MODEL
+else:
+    MULTI_ENGINE = "parakeet"
+    MULTI_MODEL = _PARAKEET_NAME
 
 GIGAAM_MODEL = get_setting("Recognition", "gigaam_model", "GIGAAM_MODEL", default="gigaam-v3-e2e-rnnt")
 GIGAAM_MODEL_PATH = ""

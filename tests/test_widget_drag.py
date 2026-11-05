@@ -12,8 +12,10 @@ from unittest.mock import patch
 path = pathlib.Path(__file__).resolve().parents[1] / "src" / "ui.py"
 spec = importlib.util.spec_from_file_location("drag_ui", path)
 UI = importlib.util.module_from_spec(spec)
-stub_config = types.ModuleType("config")
-stub_config.get_resource_path = lambda relative_path: relative_path
+stub_config = types.SimpleNamespace(
+    get_resource_path=lambda relative_path: relative_path,
+    RECOGNITION_MODE="ru",
+)
 with patch.dict(sys.modules, {"config": stub_config}):
     spec.loader.exec_module(UI)
 
@@ -105,6 +107,19 @@ class WidgetDragTests(unittest.TestCase):
         self.assertTrue(self.widget.paste_enabled)
         self.widget.chk_paste.invoke()
         self.assertFalse(self.widget.paste_enabled)
+
+    def test_radio_buttons_switch_and_keep_one_choice(self):
+        self.assertEqual(self.widget.recognition_mode.get(), "ru")
+        self.widget.rad_multi.invoke()
+        self.assertEqual(self.widget.recognition_mode.get(), "multi")
+        self.widget.rad_ru.invoke()
+        self.assertEqual(self.widget.recognition_mode.get(), "ru")
+
+    def test_radio_press_does_not_start_window_drag(self):
+        self.event(self.widget.rad_multi, "<ButtonPress-1>")
+        self.event(self.widget.rad_multi, "<B1-Motion>", 150, 70)
+        self.event(self.widget.rad_multi, "<ButtonRelease-1>", 150, 70)
+        self.assertEqual(self.position(), self.origin)
 
     def test_checkbox_press_does_not_start_window_drag(self):
         self.event(self.widget.chk_ai_task, "<ButtonPress-1>")

@@ -341,5 +341,76 @@ class ModelSettingsTests(unittest.TestCase):
         self.assertEqual((target / "user-file.txt").read_text(), "keep")
 
 
+class RecognitionModeTests(ModelSettingsTests):
+    def test_russian_mode_stays_on_gigaam_even_when_multi_names_parakeet(self):
+        self.ini.write_text(
+            "[Recognition]\nspeech_recognition_model = nemo-parakeet-tdt-0.6b-v3\nrecognition_mode = ru\n",
+            encoding="utf-8",
+        )
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.RECOGNITION_MODE, "ru")
+        self.assertEqual(reloaded.MULTI_ENGINE, "parakeet")
+        self.assertEqual(reloaded.MULTI_MODEL, "nemo-parakeet-tdt-0.6b-v3")
+
+    def test_whisper_name_selects_whisper_for_multi(self):
+        self.ini.write_text(
+            "[Recognition]\nspeech_recognition_model = large-v3-turbo\nrecognition_mode = multi\n",
+            encoding="utf-8",
+        )
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.MULTI_ENGINE, "whisper")
+        self.assertEqual(reloaded.MULTI_MODEL, "large-v3-turbo")
+
+    def test_gigaam_name_keeps_multi_on_parakeet(self):
+        self.ini.write_text(
+            "[Recognition]\nspeech_recognition_model = gigaam-v3-e2e-rnnt\nrecognition_mode = multi\n",
+            encoding="utf-8",
+        )
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.MULTI_ENGINE, "parakeet")
+        self.assertEqual(reloaded.MULTI_MODEL, "nemo-parakeet-tdt-0.6b-v3")
+
+    def test_unknown_mode_falls_back_to_russian(self):
+        self.ini.write_text(
+            "[Recognition]\nspeech_recognition_model = large-v3-turbo\nrecognition_mode = both\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.reload_config().RECOGNITION_MODE, "ru")
+
+    def test_radio_choice_is_written_back(self):
+        self.config.save_setting("RECOGNITION_MODE", "multi")
+        self.assertEqual(self.reload_config().RECOGNITION_MODE, "multi")
+
+
+class PauseSplitTests(unittest.TestCase):
+    def test_long_recording_is_joined_from_pause_segments(self):
+        stub_config = types.SimpleNamespace(RECOGNITION_MODE="multi", MULTI_ENGINE="parakeet")
+        stub_sounddevice = types.ModuleType("sounddevice")
+        engine = load_source("pause_engine", "audio_engine.py", {"config": stub_config, "sounddevice": stub_sounddevice})
+        audio = engine.AudioEngine.__new__(engine.AudioEngine)
+        audio.sample_rate = 16000
+        audio.vad = object()
+
+        class Segment:
+            def __init__(self, text):
+                self.text = text
+
+        class SplitModel:
+            def __init__(self):
+                self.calls = 0
+
+            def with_vad(self, vad):
+                self.calls += 1
+                return self
+
+            def recognize(self, waveform, sample_rate=None):
+                return iter([Segment("first phrase"), Segment("  "), Segment("second phrase")])
+
+        model = SplitModel()
+        text = audio._segment_text(model, np.zeros(16000, dtype=np.float32))
+        self.assertEqual(model.calls, 1)
+        self.assertEqual(text, "first phrase second phrase")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -192,7 +192,7 @@ LLM steps:
 
 ## Widget and tray
 
-The widget is a borderless 320×102 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, and close button do not start a drag.
+The widget is a borderless 320×120 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, radio buttons, and close button do not start a drag.
 
 The left control is a 32×32 radar with a 5×5 LED matrix. Click it to start or stop. During recording it shows a rotating gold sweep. After `warn_record_seconds`, the sweep turns into a flashing red warning. At `max_record_seconds`, recording stops and is transcribed.
 
@@ -205,6 +205,8 @@ Row 1: `LLM norm`, `to EN`, `clip+`.
 Row 2: `wake`, `alert`, `paste`.
 
 Row 3: `AI task`, `Idea`, `mk Post`.
+
+Row 4: `ru` and `multi`. These are radio buttons, so only one is active. `ru` recognizes Russian with GigaAM. `multi` uses the Parakeet or Whisper model named by `speech_recognition_model` in `config.ini`. The choice is saved as `recognition_mode`.
 
 - `wake` starts or stops background listening. Turning it off unloads Vosk.
 - `alert` plays the ready chime. It also plays when a wake word starts recording.

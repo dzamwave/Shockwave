@@ -28,6 +28,8 @@ class AudioEngine:
         
         self.engine_type = getattr(config, "STT_ENGINE", "whisper").lower()
         self.model = None
+        self.vad = None
+        self._loaded_engine = None
         self._model_lock = threading.Lock()
         self._is_loading_model = False
         self._last_used_time = 0.0
@@ -37,54 +39,77 @@ class AudioEngine:
         self._watchdog_thread = threading.Thread(target=self._idle_watchdog, daemon=True)
         self._watchdog_thread.start()
 
+    def active_engine(self):
+        """The recognizer for the current widget choice.
+
+        ru always uses GigaAM. multi uses the Parakeet or Whisper model
+        named in config.ini.
+        """
+        mode = str(getattr(config, "RECOGNITION_MODE", "ru")).strip().lower()
+        if mode == "multi":
+            return str(getattr(config, "MULTI_ENGINE", "parakeet")).strip().lower()
+        return "gigaam"
+
+    def _onnx_session_options(self):
+        if not getattr(config, "ONNX_OPTIMIZE_MEMORY", True):
+            return None
+        try:
+            import onnxruntime as ort
+            sess_options = ort.SessionOptions()
+            sess_options.enable_cpu_mem_arena = False
+            sess_options.enable_mem_pattern = False
+            sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            sess_options.intra_op_num_threads = min(4, os.cpu_count() or 4)
+            sess_options.inter_op_num_threads = 1
+            print("[AudioEngine] ONNX memory optimizations applied (arena=False, pattern=False).")
+            return sess_options
+        except Exception as e:
+            print(f"[AudioEngine] Could not configure ONNX session options: {e}")
+            return None
+
+    def _load_onnx_model(self, model_name, folder):
+        import onnx_asr
+        quant = None if config.GIGAAM_QUANTIZATION in ("", "float32") else config.GIGAAM_QUANTIZATION
+        sess_options = self._onnx_session_options()
+        if os.path.isdir(folder) and os.listdir(folder):
+            print(f"[AudioEngine] Loading from local path: {folder}")
+            return onnx_asr.load_model(model_name, path=folder, quantization=quant, sess_options=sess_options)
+        return onnx_asr.load_model(model_name, quantization=quant, sess_options=sess_options)
+
+    def _segment_text(self, model, audio_np):
+        """Recognize one recording, splitting it at pauses when a VAD is loaded."""
+        vad = getattr(self, "vad", None)
+        if vad is None:
+            text = model.recognize(audio_np)
+            return text.strip() if isinstance(text, str) else str(text).strip()
+        parts = []
+        for segment in model.with_vad(vad).recognize(audio_np, sample_rate=self.sample_rate):
+            text = getattr(segment, "text", "")
+            if isinstance(text, str) and text.strip():
+                parts.append(text.strip())
+        return " ".join(parts).strip()
+
     def get_or_load_model(self):
-        """Loads STT model into memory on demand (lazy loading)."""
+        """Loads the recognizer selected by the widget into memory on demand."""
         with self._model_lock:
-            if self.model is not None:
+            engine = self.active_engine()
+            if self.model is not None and self._loaded_engine == engine:
                 return self.model
-                
-            self.engine_type = getattr(config, "STT_ENGINE", "whisper").lower()
-            print(f"\n[AudioEngine] Loading STT model ({self.engine_type}) into memory...")
+            if self.model is not None:
+                print(f"[AudioEngine] Switching recognizer from {self._loaded_engine} to {engine}.")
+                self.model = None
+                self.vad = None
+
+            self.engine_type = engine
+            self._loaded_engine = engine
+            print(f"\n[AudioEngine] Loading STT model ({engine}) into memory...")
             start_t = time.time()
 
-            if self.engine_type == "gigaam":
-                try:
-                    import onnx_asr
-                    model_name = config.GIGAAM_MODEL
-                    quant = None if config.GIGAAM_QUANTIZATION in ("", "float32") else config.GIGAAM_QUANTIZATION
-                    gigaam_path = config.GIGAAM_MODEL_PATH if config.GIGAAM_MODEL_PATH else config.GIGAAM_DIR
-
-                    sess_options = None
-                    if getattr(config, "ONNX_OPTIMIZE_MEMORY", True):
-                        try:
-                            import onnxruntime as ort
-                            sess_options = ort.SessionOptions()
-                            sess_options.enable_cpu_mem_arena = False
-                            sess_options.enable_mem_pattern = False
-                            sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-                            sess_options.intra_op_num_threads = min(4, os.cpu_count() or 4)
-                            sess_options.inter_op_num_threads = 1
-                            print("[AudioEngine] ONNX memory optimizations applied (arena=False, pattern=False).")
-                        except Exception as e:
-                            print(f"[AudioEngine] Could not configure ONNX session options: {e}")
-                            sess_options = None
-
-                    print(f"[AudioEngine] Loading GigaAM model: {model_name} (quantization={quant}) ...")
-                    if os.path.exists(gigaam_path) and os.listdir(gigaam_path):
-                        print(f"[AudioEngine] Loading from local path: {gigaam_path}")
-                        self.model = onnx_asr.load_model(model_name, path=gigaam_path, quantization=quant, sess_options=sess_options)
-                    else:
-                        self.model = onnx_asr.load_model(model_name, quantization=quant, sess_options=sess_options)
-                    print(f"[AudioEngine] GigaAM model loaded successfully in {time.time() - start_t:.2f}s.")
-                except Exception as e:
-                    print(f"[AudioEngine] Error loading GigaAM: {e}")
-                    self.model = None
-            else:
+            if engine == "whisper":
                 try:
                     from faster_whisper import WhisperModel
                     whisper_path = config.WHISPER_MODEL_PATH if config.WHISPER_MODEL_PATH else config.WHISPER_DIR
                     cpu_threads = min(4, os.cpu_count() or 4)
-
                     if os.path.exists(whisper_path) and os.path.exists(os.path.join(whisper_path, "model.bin")):
                         print(f"[AudioEngine] Loading Whisper model from local path: {whisper_path} ...")
                         self.model = WhisperModel(whisper_path, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
@@ -96,9 +121,35 @@ class AudioEngine:
                 except Exception as e:
                     print(f"[AudioEngine] Error loading Whisper: {e}")
                     self.model = None
+            else:
+                try:
+                    model_name = config.GIGAAM_MODEL if engine == "gigaam" else config.MULTI_MODEL
+                    folder = config.GIGAAM_DIR if engine == "gigaam" else config.PARAKEET_DIR
+                    label = "GigaAM" if engine == "gigaam" else "Parakeet"
+                    print(f"[AudioEngine] Loading {label} model: {model_name} ...")
+                    self.model = self._load_onnx_model(model_name, folder)
+                    print(f"[AudioEngine] {label} model loaded successfully in {time.time() - start_t:.2f}s.")
+                    self._load_vad()
+                except Exception as e:
+                    print(f"[AudioEngine] Error loading {engine}: {e}")
+                    self.model = None
 
             self._last_used_time = time.time()
             return self.model
+
+    def _load_vad(self):
+        """Load the pause detector used to split a long recording. Optional."""
+        try:
+            import onnx_asr
+            folder = config.VAD_DIR
+            if os.path.isdir(folder) and os.listdir(folder):
+                self.vad = onnx_asr.load_vad("silero", path=folder)
+            else:
+                self.vad = onnx_asr.load_vad("silero")
+            print("[AudioEngine] Pause detection loaded.")
+        except Exception as e:
+            self.vad = None
+            print(f"[AudioEngine] Pause detection unavailable, using the whole recording: {e}")
 
     def preload_model_async(self):
         """Starts loading STT model in background while recording audio to minimize transcription latency."""
@@ -118,6 +169,8 @@ class AudioEngine:
                 return
             print(f"\n[AudioEngine] Idle timeout reached. Unloading STT model ({self.engine_type}) from memory...")
             self.model = None
+            self.vad = None
+            self._loaded_engine = None
             import gc
             gc.collect()
             try:
@@ -248,28 +301,28 @@ class AudioEngine:
             return ""
         
         try:
-            if self.engine_type == "gigaam":
+            if self.engine_type == "whisper":
+                text = self._whisper_text(model, audio_np)
+            else:
                 recognition_start = time.monotonic()
-                text = model.recognize(audio_np)
-                print(f"[AudioEngine] GigaAM recognition time={time.monotonic() - recognition_start:.2f}s.")
-                if not isinstance(text, str):
-                    text = str(text)
-                print(f"GigaAM output: {text}")
-                self._last_used_time = time.time()
-                return text.strip()
-
-            configured_language = getattr(config, "WHISPER_LANGUAGE", "en").strip().lower()
-            whisper_lang = None if configured_language in ("", "auto", "detect") else configured_language
-            segments, info = model.transcribe(audio_np, language=whisper_lang)
-            text = " ".join([segment.text for segment in segments])
-            detected_language = whisper_lang or getattr(info, "language", None) or "auto"
-            print(f"Whisper output ({detected_language}): {text}")
+                text = self._segment_text(model, audio_np)
+                label = "GigaAM" if self.engine_type == "gigaam" else "Parakeet"
+                print(f"[AudioEngine] {label} recognition time={time.monotonic() - recognition_start:.2f}s.")
+                print(f"{label} output: {text}")
             self._last_used_time = time.time()
-            return text.strip()
-                
+            return text
         except Exception as e:
             print(f"Transcription exception: {e}")
             return ""
+
+    def _whisper_text(self, model, audio_np):
+        configured_language = getattr(config, "WHISPER_LANGUAGE", "en").strip().lower()
+        whisper_lang = None if configured_language in ("", "auto", "detect") else configured_language
+        segments, info = model.transcribe(audio_np, language=whisper_lang)
+        text = " ".join([segment.text for segment in segments])
+        detected_language = whisper_lang or getattr(info, "language", None) or "auto"
+        print(f"Whisper output ({detected_language}): {text}")
+        return text.strip()
 
     def cleanup(self):
         """Stops background watchdog, halts recording, and unloads model."""
