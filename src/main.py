@@ -64,7 +64,7 @@ class WinVoiceApp:
         icon_path = config.get_resource_path(os.path.join("icons", "icon.ico"))
         self.tray = SystemTrayManager(
             icon_path=icon_path,
-            tooltip=f"Shockwave v{getattr(config, 'APP_VERSION', '1.2.0')}",
+            tooltip=f"Shockwave v{getattr(config, 'APP_VERSION', '1.3.0')}",
             on_quit=self.quit_app,
             on_show_widget=self.show_widget_topmost
         )
@@ -90,17 +90,21 @@ class WinVoiceApp:
 
     def _print_startup_summary(self):
         """Print the selected runtime settings in a stable order."""
-        if getattr(config, "STT_ENGINE", "whisper") == "gigaam":
-            speech_model = f"{config.GIGAAM_MODEL}, {config.GIGAAM_QUANTIZATION}"
-            recognition_language = "ru"
-        else:
+        mode = str(getattr(config, "RECOGNITION_MODE", "ru")).strip().lower()
+        if mode == "multi" and getattr(config, "MULTI_ENGINE", "") == "whisper":
             speech_model = config.WHISPER_MODEL
             recognition_language = getattr(config, "WHISPER_LANGUAGE", "en").strip().lower() or "en"
+        elif mode == "multi":
+            speech_model = f"{config.MULTI_MODEL}, {config.GIGAAM_QUANTIZATION}"
+            recognition_language = "multi"
+        else:
+            speech_model = f"{config.GIGAAM_MODEL}, {config.GIGAAM_QUANTIZATION}"
+            recognition_language = "ru"
         glossary_path = getattr(self.glossary, "glossary_path", "")
         source_dir = os.path.dirname(os.path.abspath(__file__))
         glossary_display = os.path.relpath(glossary_path, source_dir) if glossary_path else "glossary.txt"
         settings_display = os.path.relpath(getattr(config, "CONFIG_INI_PATH", "config/config.ini"), source_dir)
-        self._startup_line("Shockwave version", getattr(config, "APP_VERSION", "1.2.0"))
+        self._startup_line("Shockwave version", getattr(config, "APP_VERSION", "1.3.0"))
         self._startup_line("Settings are read from", settings_display)
         self._startup_line("Speech Recognition Model", speech_model)
         self._startup_line("WakeWord Model", os.path.basename(getattr(config, "VOSK_DIR", "")))

@@ -1,6 +1,6 @@
 # Shockwave — Setup & User Guide
 
-Version 1.2.0. Windows only.
+Version 1.3.0. Windows only.
 
 Shockwave is a background dictation tool. Speech is recognized locally. The result is copied to the clipboard, and can optionally be pasted into the window that currently has the input focus.
 
@@ -14,7 +14,7 @@ There are three ways to record:
 
 ## Quick start (no Python required)
 
-1. Download the latest `Shockwave-v1.2.0-Windows-x64.zip` from [GitHub Releases](https://github.com/dzamwave/shockwave/releases).
+1. Download the latest `Shockwave-v1.3.0-Windows-x64.zip` from [GitHub Releases](https://github.com/dzamwave/shockwave/releases).
 2. Extract it to any folder, for example `C:\Shockwave`.
 3. Edit `config\config.ini`. The packaged release already contains a working file; the template is `config\config.example.ini`.
 4. Run `Shockwave.exe` from the `Shockwave` folder. The executable is not placed directly in `dist`.
@@ -98,7 +98,10 @@ The built-in defaults differ from the values shipped in `config.example.ini`.
 | `[Recording]` | `hotkey` | `ctrl+space` | `ctrl+space` | Global hotkey |
 | `[Recording]` | `max_record_seconds` | `180` | `180` | Automatic stop, in seconds |
 | `[Recording]` | `warn_record_seconds` | `150` | `150` | Red radar warning |
-| `[Recognition]` | `speech_recognition_model` | `large-v3-turbo` | `large-v3-turbo` | Whisper name, or `gigaam-v3-e2e-rnnt` |
+| `[Recognition]` | `ru_recognition_model` | `gigaam-v3-e2e-rnnt` | `gigaam-v3-e2e-rnnt` | GigaAM model for the `ru` radio button |
+| `[Recognition]` | `multi_recognition_model` | `nemo-parakeet-tdt-0.6b-v3` | `nemo-parakeet-tdt-0.6b-v3` | Parakeet or Whisper model for the `multi` radio button |
+| `[Recognition]` | `recognition_mode` | `ru` | `ru` | `ru` or `multi`; the radio buttons save this |
+| `[Recognition]` | `whisper_language` | `en` | `en` | Language passed to Whisper; `auto` detects it |
 | `[Recognition]` | `gigaam_quantization` | `int8` | `int8` | `int8` or `float32` |
 | `[Recognition]` | `onnx_optimize_memory` | `true` | `true` | Keep ONNX from reserving a large arena |
 | `[Recognition]` | `model_idle_timeout` | `300` | `300` | Idle seconds before unloading; `0` disables it |
@@ -132,11 +135,12 @@ Use a modifier plus a key, such as `ctrl+space`, `alt+space`, `ctrl+alt+f8`, or 
 
 ### Speech models
 
-- **Whisper** (`large-v3-turbo`) is the default speech engine. It is multilingual and uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language.
-- **GigaAM** (`gigaam-v3-e2e-rnnt`) is the optional Russian model. Select it with `speech_recognition_model = gigaam-v3-e2e-rnnt`. It uses ONNX Runtime on CPU. `int8` is smaller; `float32` is full precision. It ignores `whisper_language`. An older `engine` plus `whisper_model` pair is still read when the new setting is absent.
-- Known Whisper downloads are `large-v3-turbo`, `large-v3`, `medium`, `small`, `base`, and `tiny`.
-- The selected model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded.
-- Weights are stored under `models\whisper`, `models\gigaam`, `models\vosk-model-small-ru`, and `models\vosk-model-small-en-us`.
+- **GigaAM** (`gigaam-v3-e2e-rnnt`) is the model for the `ru` radio button. Set it with `ru_recognition_model`. It uses ONNX Runtime on CPU. `int8` is smaller; `float32` is full precision. It ignores `whisper_language`.
+- **Parakeet** (`nemo-parakeet-tdt-0.6b-v3`) is the default model for the `multi` radio button. Set it with `multi_recognition_model`. A Whisper name in the same setting selects Whisper instead. A GigaAM name there is rejected and Parakeet is used.
+- **Whisper** (`large-v3-turbo`) is the multilingual option for `multi`. It uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language. GigaAM and Parakeet ignore it.
+- Known Whisper downloads are `large-v3-turbo`, `large-v3`, `medium`, `small`, `base`, and `tiny`. An older `speech_recognition_model`, or an `engine` plus `whisper_model` pair, is still read when the two new lines are absent.
+- The selected model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded. Switching the radio button unloads the other model.
+- Long GigaAM and Parakeet recordings are split at pauses. Weights are stored under `models\whisper`, `models\gigaam`, `models\parakeet`, `models\vad`, `models\vosk-model-small-ru`, and `models\vosk-model-small-en-us`.
 
 ### Wake word
 
@@ -192,7 +196,7 @@ LLM steps:
 
 ## Widget and tray
 
-The widget is a borderless 320×120 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, radio buttons, and close button do not start a drag.
+The widget is a borderless 340×120 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, mode buttons, and close button do not start a drag.
 
 The left control is a 32×32 radar with a 5×5 LED matrix. Click it to start or stop. During recording it shows a rotating gold sweep. After `warn_record_seconds`, the sweep turns into a flashing red warning. At `max_record_seconds`, recording stops and is transcribed.
 
@@ -206,7 +210,7 @@ Row 2: `wake`, `alert`, `paste`.
 
 Row 3: `AI task`, `Idea`, `mk Post`.
 
-Row 4: `ru` and `multi`. These are radio buttons, so only one is active. `ru` recognizes Russian with GigaAM. `multi` uses the Parakeet or Whisper model named by `speech_recognition_model` in `config.ini`. The choice is saved as `recognition_mode`.
+Row 4: `RU` and `ML`. These are buttons, so pressing one releases the other. `RU` uses `ru_recognition_model`. `ML` uses `multi_recognition_model`, which must be a Parakeet or Whisper name. The choice is saved as `recognition_mode`.
 
 - `wake` starts or stops background listening. Turning it off unloads Vosk.
 - `alert` plays the ready chime. It also plays when a wake word starts recording.

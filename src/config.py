@@ -258,48 +258,50 @@ def speech_engine(value: str) -> str:
         return "whisper"
     return name
 
-# One setting selects both the engine and, for Whisper, the model size.
-# Older configs may still use engine plus whisper_model.
-_MODEL_CHOICE = get_setting(
+# ru and multi each name their own model. An older file may still have one
+# speech_recognition_model; it fills whichever of the two lines is missing.
+_LEGACY_MODEL = get_setting(
     "Recognition", "speech_recognition_model", "SPEECH_RECOGNITION_MODEL", default="", allow_empty=True
 ).strip().lower()
 _LEGACY_ENGINE = get_setting("Recognition", "engine", "STT_ENGINE", default="", allow_empty=True).strip().lower()
 _LEGACY_WHISPER = get_setting("Recognition", "whisper_model", "WHISPER_MODEL", default="", allow_empty=True).strip()
+_PARAKEET_NAME = "nemo-parakeet-tdt-0.6b-v3"
+_GIGAAM_NAME = "gigaam-v3-e2e-rnnt"
 
-if _MODEL_CHOICE:
-    STT_ENGINE = speech_engine(_MODEL_CHOICE)
-    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
-    if STT_ENGINE == "whisper" and _MODEL_CHOICE not in ("whisper", "whisper_model"):
-        WHISPER_MODEL = _MODEL_CHOICE
-elif _LEGACY_ENGINE:
-    STT_ENGINE = speech_engine(_LEGACY_ENGINE)
-    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
-else:
-    STT_ENGINE = "whisper"
-    WHISPER_MODEL = _LEGACY_WHISPER or "large-v3-turbo"
+def _named_model(key, fallback):
+    value = get_setting("Recognition", key, key.upper(), default="", allow_empty=True).strip().lower()
+    return value or fallback
+
+_legacy_engine = speech_engine(_LEGACY_MODEL or _LEGACY_ENGINE)
+_legacy_multi = ""
+if _legacy_engine in ("whisper", "parakeet"):
+    _legacy_multi = _LEGACY_MODEL or _LEGACY_WHISPER
+elif _LEGACY_WHISPER:
+    _legacy_multi = _LEGACY_WHISPER
+RU_MODEL = _named_model("ru_recognition_model", _LEGACY_MODEL if _legacy_engine == "gigaam" else _GIGAAM_NAME)
+MULTI_MODEL = _named_model("multi_recognition_model", _legacy_multi or _PARAKEET_NAME)
+RU_ENGINE = speech_engine(RU_MODEL)
+MULTI_ENGINE = speech_engine(MULTI_MODEL)
+if RU_ENGINE != "gigaam":
+    print(f"[Config] ru_recognition_model '{RU_MODEL}' is not a GigaAM model. Using {_GIGAAM_NAME}.")
+    RU_MODEL = _GIGAAM_NAME
+    RU_ENGINE = "gigaam"
+if MULTI_ENGINE not in ("whisper", "parakeet"):
+    print(f"[Config] multi_recognition_model '{MULTI_MODEL}' must be Whisper or Parakeet. Using {_PARAKEET_NAME}.")
+    MULTI_MODEL = _PARAKEET_NAME
+    MULTI_ENGINE = "parakeet"
+
+WHISPER_MODEL = MULTI_MODEL if MULTI_ENGINE == "whisper" else (_LEGACY_WHISPER or "large-v3-turbo")
 WHISPER_MODEL_PATH = ""
 WHISPER_LANGUAGE = get_setting("Recognition", "whisper_language", default="en").strip().lower() or "en"
-
-# ru always uses GigaAM. multi uses the model named above when it is
-# Parakeet or Whisper, and falls back to Parakeet for a Russian-only name.
 RECOGNITION_MODE = get_setting(
     "Recognition", "recognition_mode", "RECOGNITION_MODE", default="ru"
 ).strip().lower() or "ru"
 if RECOGNITION_MODE not in ("ru", "multi"):
     print(f"[Config] Unknown recognition_mode '{RECOGNITION_MODE}'. Using ru.")
     RECOGNITION_MODE = "ru"
-_PARAKEET_NAME = "nemo-parakeet-tdt-0.6b-v3"
-if STT_ENGINE == "parakeet":
-    MULTI_ENGINE = "parakeet"
-    MULTI_MODEL = _MODEL_CHOICE or _PARAKEET_NAME
-elif STT_ENGINE == "whisper":
-    MULTI_ENGINE = "whisper"
-    MULTI_MODEL = WHISPER_MODEL
-else:
-    MULTI_ENGINE = "parakeet"
-    MULTI_MODEL = _PARAKEET_NAME
-
-GIGAAM_MODEL = get_setting("Recognition", "gigaam_model", "GIGAAM_MODEL", default="gigaam-v3-e2e-rnnt")
+STT_ENGINE = RU_ENGINE
+GIGAAM_MODEL = RU_MODEL
 GIGAAM_MODEL_PATH = ""
 GIGAAM_QUANTIZATION = get_setting("Recognition", "gigaam_quantization", "GIGAAM_QUANTIZATION", default="int8", allow_empty=True).lower()
 if GIGAAM_QUANTIZATION in ("", "none", "fp32"):
@@ -345,7 +347,7 @@ UI_GRIP_COLOR = get_setting("Widget", "ui_grip_color", "UI_GRIP_COLOR", default=
 # --- Console ---
 # Compatibility constant; legacy language settings no longer select a UI language.
 APP_LANGUAGE = "en"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 CLI_TITLE_COLOR = get_setting("Console", "cli_title_color", "CLI_TITLE_COLOR", default="#B45FEB", aliases=[("Theme", "cli_title_color")])
 CLI_QUOTE_COLOR = get_setting("Console", "cli_quote_color", "CLI_QUOTE_COLOR", default="#807785", aliases=[("Theme", "cli_quote_color")])
 CLI_BANNER_PAD = get_int("Console", "cli_banner_pad", "CLI_BANNER_PAD", default=3, aliases=[("Theme", "cli_banner_pad")])

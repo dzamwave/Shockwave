@@ -3,6 +3,7 @@ import sounddevice as sd
 import time
 import os
 import threading
+from pathlib import Path
 
 import config
 
@@ -42,8 +43,7 @@ class AudioEngine:
     def active_engine(self):
         """The recognizer for the current widget choice.
 
-        ru always uses GigaAM. multi uses the Parakeet or Whisper model
-        named in config.ini.
+        ru always uses ru_recognition_model. multi uses multi_recognition_model.
         """
         mode = str(getattr(config, "RECOGNITION_MODE", "ru")).strip().lower()
         if mode == "multi":
@@ -142,6 +142,7 @@ class AudioEngine:
         try:
             import onnx_asr
             folder = config.VAD_DIR
+            self._publish_vad_file(folder)
             if os.path.isdir(folder) and os.listdir(folder):
                 self.vad = onnx_asr.load_vad("silero", path=folder)
             else:
@@ -150,6 +151,18 @@ class AudioEngine:
         except Exception as e:
             self.vad = None
             print(f"[AudioEngine] Pause detection unavailable, using the whole recording: {e}")
+
+    def _publish_vad_file(self, folder):
+        """The downloader stores onnx/model.onnx; Silero looks for silero_vad.onnx."""
+        expected = os.path.join(folder, "silero_vad.onnx")
+        if os.path.isfile(expected):
+            return
+        for name in ("model.onnx", "model_int8.onnx"):
+            for found in Path(folder).rglob(name):
+                if found.is_file() and found.stat().st_size:
+                    os.makedirs(folder, exist_ok=True)
+                    found.replace(expected)
+                    return
 
     def preload_model_async(self):
         """Starts loading STT model in background while recording audio to minimize transcription latency."""

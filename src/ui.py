@@ -525,12 +525,16 @@ class WinVoiceUI:
         )
         self.chk_paste.grid(row=1, column=2, sticky="w")
 
-        # Row 3: Russian GigaAM, or the Parakeet/Whisper model named in config.ini.
+        # Row 3: RU uses ru_recognition_model, ML uses multi_recognition_model.
         self.recognition_mode = tk.StringVar(value=getattr(config, "RECOGNITION_MODE", "ru"))
 
-        def choose_recognition_mode():
-            mode = self.recognition_mode.get()
+        def choose_recognition_mode(mode):
+            if self.recognition_mode.get() == mode:
+                self._paint_mode_buttons()
+                return
+            self.recognition_mode.set(mode)
             config.RECOGNITION_MODE = mode
+            self._paint_mode_buttons()
             save_setting = getattr(config, "save_setting", None)
             if save_setting is None:
                 return
@@ -539,22 +543,19 @@ class WinVoiceUI:
             except Exception as e:
                 print(f"[UI] Could not save recognition mode: {e}")
 
-        self.rad_ru = tk.Radiobutton(
-            self.controls_frame, text="ru", variable=self.recognition_mode, value="ru",
-            command=choose_recognition_mode,
-            bg=self.COLOR_BG, fg=self.COLOR_MUTED, selectcolor=self.COLOR_GRIP,
-            activebackground=self.COLOR_BG, activeforeground="#ffffff",
-            font=("Segoe UI", 8), cursor="hand2", padx=0,
+        self.btn_ru = tk.Label(
+            self.controls_frame, text="RU", cursor="hand2",
+            font=("Segoe UI", 8, "bold"), padx=8, pady=0,
         )
-        self.rad_ru.grid(row=3, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
-        self.rad_multi = tk.Radiobutton(
-            self.controls_frame, text="multi", variable=self.recognition_mode, value="multi",
-            command=choose_recognition_mode,
-            bg=self.COLOR_BG, fg=self.COLOR_MUTED, selectcolor=self.COLOR_GRIP,
-            activebackground=self.COLOR_BG, activeforeground="#ffffff",
-            font=("Segoe UI", 8), cursor="hand2", padx=0,
+        self.btn_ru.grid(row=3, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
+        self.btn_ru.bind("<Button-1>", lambda event: choose_recognition_mode("ru"))
+        self.btn_ml = tk.Label(
+            self.controls_frame, text="ML", cursor="hand2",
+            font=("Segoe UI", 8, "bold"), padx=8, pady=0,
         )
-        self.rad_multi.grid(row=3, column=1, sticky="w", padx=(0, 8), pady=(2, 0))
+        self.btn_ml.grid(row=3, column=1, sticky="w", padx=(0, 8), pady=(2, 0))
+        self.btn_ml.bind("<Button-1>", lambda event: choose_recognition_mode("multi"))
+        self._paint_mode_buttons()
 
         # Close button in top-right: exits application
         def on_close(event=None):
@@ -571,7 +572,7 @@ class WinVoiceUI:
             
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        width = 320
+        width = 340
         height = 120
         
         if position == "bottom-right":
@@ -805,6 +806,19 @@ class WinVoiceUI:
                 ctypes.windll.user32.SetForegroundWindow(wintypes.HWND(hwnd))
         except Exception:
             pass
+
+    def _paint_mode_buttons(self):
+        """Show the selected RU/ML button pressed and the other released."""
+        selected = self.recognition_mode.get()
+        pairs = ((self.btn_ru, "ru"), (self.btn_ml, "multi"))
+        for button, mode in pairs:
+            pressed = selected == mode
+            button.config(
+                bg="#d8c4ef" if pressed else self.COLOR_BG,
+                fg="#1d1228" if pressed else self.COLOR_MUTED,
+                relief="sunken" if pressed else "flat",
+                bd=1,
+            )
 
     def show_window(self, play_sound=True):
         """Displays the ready widget and brings it above all windows."""

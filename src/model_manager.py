@@ -37,7 +37,8 @@ def is_vad_downloaded():
     folder = Path(config.VAD_DIR)
     if not folder.is_dir():
         return False
-    return any(path.is_file() and path.stat().st_size for path in folder.glob("silero_vad.onnx"))
+    names = ("silero_vad.onnx", "silero_vad.int8.onnx", "model.onnx", "model_int8.onnx")
+    return any(path.is_file() and path.stat().st_size and path.name in names for path in folder.rglob("*.onnx"))
 
 def _onnx_model_ready(target_dir, model_name, quant):
     folder = Path(target_dir)
@@ -134,8 +135,8 @@ def _ask_download(label, folder):
 def ensure_configured_model():
     """Download the models selected in config.ini. Does not change settings.
 
-    ru needs GigaAM. multi needs the Parakeet or Whisper model named in
-    config.ini. Both ONNX models also need the pause detector.
+    ru needs the model in ru_recognition_model. multi needs the Parakeet or
+    Whisper model in multi_recognition_model. ONNX models also need the pause detector.
     """
     jobs = [("gigaam", f"GigaAM ({config.GIGAAM_MODEL}, {config.GIGAAM_QUANTIZATION})",
              config.GIGAAM_DIR, is_gigaam_downloaded())]
@@ -146,10 +147,10 @@ def ensure_configured_model():
             jobs.append(("parakeet", f"Parakeet ({config.MULTI_MODEL}, {config.GIGAAM_QUANTIZATION})",
                          config.PARAKEET_DIR, is_parakeet_downloaded()))
         else:
-            print(f"\nconfig.ini selects an unknown speech model \"{config.STT_ENGINE}\". Use a Whisper name, nemo-parakeet-tdt-0.6b-v3, or gigaam-v3-e2e-rnnt.")
+            print(f"\nconfig.ini selects an unknown speech model \"{config.STT_ENGINE}\". Use a GigaAM name for ru_recognition_model and a Whisper or Parakeet name for multi_recognition_model.")
             sys.exit(1)
     elif config.STT_ENGINE not in ("gigaam", "whisper", "parakeet"):
-        print(f"\nconfig.ini selects an unknown speech model \"{config.STT_ENGINE}\". Use a Whisper name, nemo-parakeet-tdt-0.6b-v3, or gigaam-v3-e2e-rnnt.")
+        print(f"\nconfig.ini selects an unknown speech model \"{config.STT_ENGINE}\". Use a GigaAM name for ru_recognition_model and a Whisper or Parakeet name for multi_recognition_model.")
         sys.exit(1)
     if any(engine != "whisper" for engine, _label, _folder, _ready in jobs):
         jobs.append(("vad", "pause detection (silero)", config.VAD_DIR, is_vad_downloaded()))

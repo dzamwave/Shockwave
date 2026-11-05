@@ -108,17 +108,22 @@ class WidgetDragTests(unittest.TestCase):
         self.widget.chk_paste.invoke()
         self.assertFalse(self.widget.paste_enabled)
 
-    def test_radio_buttons_switch_and_keep_one_choice(self):
+    def test_mode_buttons_switch_and_keep_one_choice(self):
         self.assertEqual(self.widget.recognition_mode.get(), "ru")
-        self.widget.rad_multi.invoke()
+        self.assertEqual(self.widget.btn_ru.cget("relief"), "sunken")
+        self.widget.btn_ml.event_generate("<Button-1>")
+        self.root.update_idletasks()
         self.assertEqual(self.widget.recognition_mode.get(), "multi")
-        self.widget.rad_ru.invoke()
+        self.assertEqual(self.widget.btn_ml.cget("relief"), "sunken")
+        self.assertEqual(self.widget.btn_ru.cget("relief"), "flat")
+        self.widget.btn_ru.event_generate("<Button-1>")
+        self.root.update_idletasks()
         self.assertEqual(self.widget.recognition_mode.get(), "ru")
 
-    def test_radio_press_does_not_start_window_drag(self):
-        self.event(self.widget.rad_multi, "<ButtonPress-1>")
-        self.event(self.widget.rad_multi, "<B1-Motion>", 150, 70)
-        self.event(self.widget.rad_multi, "<ButtonRelease-1>", 150, 70)
+    def test_mode_press_does_not_start_window_drag(self):
+        self.event(self.widget.btn_ml, "<ButtonPress-1>")
+        self.event(self.widget.btn_ml, "<B1-Motion>", 150, 70)
+        self.event(self.widget.btn_ml, "<ButtonRelease-1>", 150, 70)
         self.assertEqual(self.position(), self.origin)
 
     def test_checkbox_press_does_not_start_window_drag(self):

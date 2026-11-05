@@ -94,34 +94,37 @@ class ModelSettingsTests(unittest.TestCase):
         self.assertEqual(self.reload_config().APP_LANGUAGE, "en")
 
     def test_whisper_model_name_is_read(self):
-        self.ini.write_text("[Recognition]\nspeech_recognition_model = small\n", encoding="utf-8")
+        self.ini.write_text("[Recognition]\nmulti_recognition_model = small\n", encoding="utf-8")
         reloaded = self.reload_config()
-        self.assertEqual(reloaded.STT_ENGINE, "whisper")
+        self.assertEqual(reloaded.MULTI_ENGINE, "whisper")
         self.assertEqual(reloaded.WHISPER_MODEL, "small")
+        self.assertEqual(reloaded.RU_MODEL, "gigaam-v3-e2e-rnnt")
 
-    def test_missing_engine_stays_on_whisper(self):
+    def test_missing_engine_uses_gigaam_and_parakeet(self):
         self.ini.write_text("[Recognition]\nwhisper_language = ru\n", encoding="utf-8")
         reloaded = self.reload_config()
-        self.assertEqual(reloaded.STT_ENGINE, "whisper")
-        self.assertEqual(reloaded.WHISPER_MODEL, "large-v3-turbo")
-        self.assertEqual(reloaded.GIGAAM_MODEL, "gigaam-v3-e2e-rnnt")
+        self.assertEqual(reloaded.RU_ENGINE, "gigaam")
+        self.assertEqual(reloaded.RU_MODEL, "gigaam-v3-e2e-rnnt")
+        self.assertEqual(reloaded.MULTI_ENGINE, "parakeet")
+        self.assertEqual(reloaded.MULTI_MODEL, "nemo-parakeet-tdt-0.6b-v3")
+        self.assertEqual(reloaded.WHISPER_LANGUAGE, "ru")
         self.assertEqual(reloaded.GIGAAM_QUANTIZATION, "int8")
         self.assertTrue(reloaded.ONNX_OPTIMIZE_MEMORY)
 
     def test_legacy_whisper_model_name_is_still_read(self):
         self.ini.write_text("[Recognition]\nengine = whisper_model\nwhisper_model = small\n", encoding="utf-8")
         reloaded = self.reload_config()
-        self.assertEqual(reloaded.STT_ENGINE, "whisper")
+        self.assertEqual(reloaded.MULTI_ENGINE, "whisper")
         self.assertEqual(reloaded.WHISPER_MODEL, "small")
 
     def test_gigaam_engine_and_quantization_are_read(self):
         self.ini.write_text(
-            "[Recognition]\nspeech_recognition_model = gigaam-v3-e2e-rnnt\n"
+            "[Recognition]\nru_recognition_model = gigaam-v3-e2e-rnnt\n"
             "gigaam_quantization = float32\nonnx_optimize_memory = false\n",
             encoding="utf-8",
         )
         reloaded = self.reload_config()
-        self.assertEqual(reloaded.STT_ENGINE, "gigaam")
+        self.assertEqual(reloaded.RU_ENGINE, "gigaam")
         self.assertEqual(reloaded.GIGAAM_MODEL, "gigaam-v3-e2e-rnnt")
         self.assertEqual(reloaded.GIGAAM_QUANTIZATION, "float32")
         self.assertFalse(reloaded.ONNX_OPTIMIZE_MEMORY)
@@ -342,37 +345,47 @@ class ModelSettingsTests(unittest.TestCase):
 
 
 class RecognitionModeTests(ModelSettingsTests):
-    def test_russian_mode_stays_on_gigaam_even_when_multi_names_parakeet(self):
+    def test_the_two_model_lines_are_independent(self):
         self.ini.write_text(
-            "[Recognition]\nspeech_recognition_model = nemo-parakeet-tdt-0.6b-v3\nrecognition_mode = ru\n",
+            "[Recognition]\nru_recognition_model = gigaam-v3-e2e-rnnt\n"
+            "multi_recognition_model = nemo-parakeet-tdt-0.6b-v3\nrecognition_mode = ru\n",
             encoding="utf-8",
         )
         reloaded = self.reload_config()
         self.assertEqual(reloaded.RECOGNITION_MODE, "ru")
+        self.assertEqual(reloaded.RU_MODEL, "gigaam-v3-e2e-rnnt")
         self.assertEqual(reloaded.MULTI_ENGINE, "parakeet")
         self.assertEqual(reloaded.MULTI_MODEL, "nemo-parakeet-tdt-0.6b-v3")
 
     def test_whisper_name_selects_whisper_for_multi(self):
         self.ini.write_text(
-            "[Recognition]\nspeech_recognition_model = large-v3-turbo\nrecognition_mode = multi\n",
+            "[Recognition]\nmulti_recognition_model = large-v3-turbo\nwhisper_language = en\nrecognition_mode = multi\n",
             encoding="utf-8",
         )
         reloaded = self.reload_config()
         self.assertEqual(reloaded.MULTI_ENGINE, "whisper")
         self.assertEqual(reloaded.MULTI_MODEL, "large-v3-turbo")
+        self.assertEqual(reloaded.WHISPER_LANGUAGE, "en")
+        self.assertEqual(reloaded.RU_MODEL, "gigaam-v3-e2e-rnnt")
 
-    def test_gigaam_name_keeps_multi_on_parakeet(self):
+    def test_gigaam_name_is_rejected_for_multi(self):
         self.ini.write_text(
-            "[Recognition]\nspeech_recognition_model = gigaam-v3-e2e-rnnt\nrecognition_mode = multi\n",
+            "[Recognition]\nmulti_recognition_model = gigaam-v3-e2e-rnnt\nrecognition_mode = multi\n",
             encoding="utf-8",
         )
         reloaded = self.reload_config()
         self.assertEqual(reloaded.MULTI_ENGINE, "parakeet")
         self.assertEqual(reloaded.MULTI_MODEL, "nemo-parakeet-tdt-0.6b-v3")
 
+    def test_old_single_model_line_still_fills_the_matching_side(self):
+        self.ini.write_text("[Recognition]\nspeech_recognition_model = small\n", encoding="utf-8")
+        reloaded = self.reload_config()
+        self.assertEqual(reloaded.RU_MODEL, "gigaam-v3-e2e-rnnt")
+        self.assertEqual(reloaded.MULTI_MODEL, "small")
+
     def test_unknown_mode_falls_back_to_russian(self):
         self.ini.write_text(
-            "[Recognition]\nspeech_recognition_model = large-v3-turbo\nrecognition_mode = both\n",
+            "[Recognition]\nmulti_recognition_model = large-v3-turbo\nrecognition_mode = both\n",
             encoding="utf-8",
         )
         self.assertEqual(self.reload_config().RECOGNITION_MODE, "ru")
