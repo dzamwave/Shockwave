@@ -12,7 +12,20 @@ Local-first Windows voice dictation. Start and stop with `Ctrl + Space`, the flo
 - Models load on demand. ONNX recordings split at pauses when Silero VAD is available; otherwise the full recording is processed.
 
 ## Modes
-The widget has `LLM norm`, `to EN`, `clip+`, `wake`, `alert`, `paste`, `AI task`, `Idea`, `mk Post`, and `RU`/`ML` model buttons. `AI task`, `Idea`, and `mk Post` are mutually exclusive. LLM modes use OpenAI-compatible endpoints and editable prompts in `config/prompts/`. `glossary.txt` applies replacements before LLM processing; `clip+` prepends the clipboard.
+
+| Checkbox | What it does |
+| --- | --- |
+| `LLM norm` | Fix punctuation and terminology |
+| `to EN` | Translate into English |
+| `clip+` | Add dictation above existing clipboard text |
+| `wake` | Listen for the wake word |
+| `alert` | Play notification sounds |
+| `paste` | Paste into the focused input |
+| `AI task` | Turn speech into an AI prompt |
+| `Idea` | Structure thoughts into a draft |
+| `mk Post` | Write a social media post |
+
+`AI task`, `Idea`, and `mk Post` are mutually exclusive. LLM modes use OpenAI-compatible endpoints and editable prompts in `config/prompts/`. `glossary.txt` applies replacements before LLM processing. Use `RU`/`ML` buttons to select the speech model.
 
 ## Quick start
 1. Download [`Shockwave-v1.3.0-Windows-x64.zip`](https://github.com/dzamwave/shockwave/releases/tag/1.3.0) and extract it.
