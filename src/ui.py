@@ -227,7 +227,7 @@ class WinVoiceUI:
         self.eye_canvas.bind("<Enter>", on_eye_enter)
         self.eye_canvas.bind("<Leave>", on_eye_leave)
         
-        # --- 3. Right Content Column (Status Text + Controls) ---
+        # --- 2. Right Content Column (Status Text + Controls) ---
         self.right_frame = tk.Frame(self.root, bg=self.COLOR_BG)
         self.right_frame.pack(side="left", fill="both", expand=True, padx=(2, 6), pady=4)
         
@@ -525,7 +525,10 @@ class WinVoiceUI:
         )
         self.chk_paste.grid(row=1, column=2, sticky="w")
 
-        # Row 3: RU uses ru_recognition_model, ML uses multi_recognition_model.
+        # Recognition mode buttons, right of the checkboxes and centered vertically.
+        self.mode_frame = tk.Frame(self.root, bg=self.COLOR_BG)
+        self.mode_frame.pack(side="right", padx=(0, 22))
+
         self.recognition_mode = tk.StringVar(value=getattr(config, "RECOGNITION_MODE", "ru"))
 
         def choose_recognition_mode(mode):
@@ -543,18 +546,22 @@ class WinVoiceUI:
             except Exception as e:
                 print(f"[UI] Could not save recognition mode: {e}")
 
-        self.btn_ru = tk.Label(
-            self.controls_frame, text="RU", cursor="hand2",
-            font=("Segoe UI", 8, "bold"), padx=8, pady=0,
-        )
-        self.btn_ru.grid(row=3, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
-        self.btn_ru.bind("<Button-1>", lambda event: choose_recognition_mode("ru"))
-        self.btn_ml = tk.Label(
-            self.controls_frame, text="ML", cursor="hand2",
-            font=("Segoe UI", 8, "bold"), padx=8, pady=0,
-        )
-        self.btn_ml.grid(row=3, column=1, sticky="w", padx=(0, 8), pady=(2, 0))
-        self.btn_ml.bind("<Button-1>", lambda event: choose_recognition_mode("multi"))
+        def add_mode_button(text, mode):
+            holder = tk.Frame(self.mode_frame, width=28, height=28, bg=self.COLOR_BG)
+            holder.pack_propagate(False)
+            button = tk.Button(
+                holder, text=text, cursor="hand2",
+                font=("Segoe UI", 8, "bold"),
+                command=lambda: choose_recognition_mode(mode),
+                highlightthickness=0, padx=0, pady=0, borderwidth=1,
+            )
+            button.pack(fill="both", expand=True)
+            return button, holder
+
+        self.btn_ru, self.ru_holder = add_mode_button("RU", "ru")
+        self.ru_holder.pack(side="top", pady=(0, 4))
+        self.btn_ml, self.ml_holder = add_mode_button("ML", "multi")
+        self.ml_holder.pack(side="top")
         self._paint_mode_buttons()
 
         # Close button in top-right: exits application
@@ -567,13 +574,13 @@ class WinVoiceUI:
         self.close_btn.bind("<Enter>", lambda e: self.close_btn.config(fg="#ff5555"))
         self.close_btn.bind("<Leave>", lambda e: self.close_btn.config(fg=self.COLOR_MUTED))
         # Bind dragging to all container frames and background labels for seamless whole-bar moving
-        for bg_widget in (self.root, self.eye_frame, self.right_frame, self.header_frame, self.label, self.countdown_label, self.controls_frame):
+        for bg_widget in (self.root, self.eye_frame, self.right_frame, self.header_frame, self.label, self.countdown_label, self.controls_frame, self.mode_frame):
             self.make_draggable(bg_widget)
             
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         width = 340
-        height = 120
+        height = 102
         
         if position == "bottom-right":
             x = screen_width - width - 20

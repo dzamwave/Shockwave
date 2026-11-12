@@ -111,12 +111,12 @@ class WidgetDragTests(unittest.TestCase):
     def test_mode_buttons_switch_and_keep_one_choice(self):
         self.assertEqual(self.widget.recognition_mode.get(), "ru")
         self.assertEqual(self.widget.btn_ru.cget("relief"), "sunken")
-        self.widget.btn_ml.event_generate("<Button-1>")
+        self.widget.btn_ml.invoke()
         self.root.update_idletasks()
         self.assertEqual(self.widget.recognition_mode.get(), "multi")
         self.assertEqual(self.widget.btn_ml.cget("relief"), "sunken")
         self.assertEqual(self.widget.btn_ru.cget("relief"), "flat")
-        self.widget.btn_ru.event_generate("<Button-1>")
+        self.widget.btn_ru.invoke()
         self.root.update_idletasks()
         self.assertEqual(self.widget.recognition_mode.get(), "ru")
 

@@ -18,7 +18,7 @@ There are three ways to record:
 2. Extract it to any folder, for example `C:\Shockwave`.
 3. Edit `config\config.ini`. The packaged release already contains a working file; the template is `config\config.example.ini`.
 4. Run `Shockwave.exe` from the `Shockwave` folder. The executable is not placed directly in `dist`.
-5. If the selected speech model is missing, Shockwave asks `Download this model? (y/n)`. Answering `y` downloads it and does not change `config.ini`. Answering anything else exits.
+5. If required speech assets are missing, Shockwave checks the RU GigaAM model, the selected ML Parakeet/Whisper model, and the pause detector as applicable, asking `Download this model? (y/n)` for each missing asset. Answering `y` downloads it and does not change `config.ini`. Answering anything else exits.
 6. The console then hides to the system tray. A purple widget appears.
 7. Press `Ctrl + Space` to start, speak, and press it again to finish. Paste the result with `Ctrl + V`, unless `paste` is enabled.
 
@@ -139,8 +139,8 @@ Use a modifier plus a key, such as `ctrl+space`, `alt+space`, `ctrl+alt+f8`, or 
 - **Parakeet** (`nemo-parakeet-tdt-0.6b-v3`) is the default model for the `multi` radio button. Set it with `multi_recognition_model`. A Whisper name in the same setting selects Whisper instead. A GigaAM name there is rejected and Parakeet is used.
 - **Whisper** (`large-v3-turbo`) is the multilingual option for `multi`. It uses faster-whisper on CPU in `int8`. Set `whisper_language` to a language code, or `auto` to detect the spoken language. GigaAM and Parakeet ignore it.
 - Known Whisper downloads are `large-v3-turbo`, `large-v3`, `medium`, `small`, `base`, and `tiny`. An older `speech_recognition_model`, or an `engine` plus `whisper_model` pair, is still read when the two new lines are absent.
-- The selected model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded. Switching the radio button unloads the other model.
-- Long GigaAM and Parakeet recordings are split at pauses. Weights are stored under `models\whisper`, `models\gigaam`, `models\parakeet`, `models\vad`, `models\vosk-model-small-ru`, and `models\vosk-model-small-en-us`.
+- The selected model loads on the first recording, not at startup. Loading begins in the background when recording starts. After `model_idle_timeout` idle seconds it is unloaded; `0` keeps it loaded. Switching the radio button changes the selected mode; the previous model is unloaded lazily when the next recording needs it.
+- Long GigaAM and Parakeet recordings are split at pauses when the Silero VAD model is available. If VAD is unavailable, Shockwave processes the whole recording. Weights are stored under `models\whisper`, `models\gigaam`, `models\parakeet`, `models\vad`, `models\vosk-model-small-ru`, and `models\vosk-model-small-en-us`.
 
 ### Wake word
 
@@ -196,7 +196,7 @@ LLM steps:
 
 ## Widget and tray
 
-The widget is a borderless 340×120 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, mode buttons, and close button do not start a drag.
+The widget is a borderless 340×102 window. It stays above other windows and is hidden from the taskbar. Drag its background to move it; the radar, checkboxes, mode buttons, and close button do not start a drag.
 
 The left control is a 32×32 radar with a 5×5 LED matrix. Click it to start or stop. During recording it shows a rotating gold sweep. After `warn_record_seconds`, the sweep turns into a flashing red warning. At `max_record_seconds`, recording stops and is transcribed.
 
@@ -210,7 +210,7 @@ Row 2: `wake`, `alert`, `paste`.
 
 Row 3: `AI task`, `Idea`, `mk Post`.
 
-Row 4: `RU` and `ML`. These are buttons, so pressing one releases the other. `RU` uses `ru_recognition_model`. `ML` uses `multi_recognition_model`, which must be a Parakeet or Whisper name. The choice is saved as `recognition_mode`.
+Right of the checkboxes, centered vertically: square `RU` and `ML` buttons. Pressing one releases the other. `RU` uses `ru_recognition_model`. `ML` uses `multi_recognition_model`, which must be a Parakeet or Whisper name. The choice is saved as `recognition_mode`.
 
 - `wake` starts or stops background listening. Turning it off unloads Vosk.
 - `alert` plays the ready chime. It also plays when a wake word starts recording.
